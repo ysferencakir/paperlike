@@ -1,11 +1,15 @@
-import { pdfjs } from "react-pdf";
-
 let workerConfigured = false;
 
-export function ensurePdfWorker() {
-  if (workerConfigured) return;
-  pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-  workerConfigured = true;
+// pdfjs (via react-pdf) touches browser-only globals like DOMMatrix at
+// module-evaluation time, which crashes if imported during SSR. Load it
+// lazily so it only ever runs in the browser.
+async function loadPdfjs() {
+  const { pdfjs } = await import("react-pdf");
+  if (!workerConfigured) {
+    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+    workerConfigured = true;
+  }
+  return pdfjs;
 }
 
 export interface ParsedPdf {
@@ -15,7 +19,7 @@ export interface ParsedPdf {
 }
 
 export async function parsePdfFile(file: Blob, fallbackTitle: string): Promise<ParsedPdf> {
-  ensurePdfWorker();
+  const pdfjs = await loadPdfjs();
   const arrayBuffer = await file.arrayBuffer();
   const doc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
 

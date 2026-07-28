@@ -136,6 +136,11 @@
   --reader-fg: #1a1a1a;
 }
 
+.reader-theme-cream {
+  --reader-bg: #f7f3e9;
+  --reader-fg: #3a3226;
+}
+
 .reader-theme-sepia {
   --reader-bg: #f4ecd8;
   --reader-fg: #5b4636;
@@ -144,6 +149,11 @@
 .reader-theme-dark {
   --reader-bg: #1e1e1e;
   --reader-fg: #e8e6e3;
+}
+
+.reader-theme-coffee {
+  --reader-bg: #2b2420;
+  --reader-fg: #d8c9b3;
 }
 
 .reader-theme-oled-black {
@@ -155,10 +165,66 @@
   font-family: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
 }
 
+.font-reader-literata {
+  font-family: var(--font-literata), Georgia, serif;
+}
+
+.font-reader-lora {
+  font-family: var(--font-lora), Georgia, serif;
+}
+
+.font-reader-garamond {
+  font-family: var(--font-garamond), Georgia, serif;
+}
+
 .font-reader-sans {
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
 .font-reader-dyslexic {
   font-family: "Comic Sans MS", "Comic Sans", "Andika", sans-serif;
+}
+
+/* A light page-curl illusion: the new page tilts in from the edge it came
+   from (like a sheet settling flat) rather than just sliding/fading. */
+@keyframes epub-page-turn-next {
+  from {
+    opacity: 0;
+    filter: drop-shadow(-10px 0 14px rgb(0 0 0 / 0.18));
+    transform: perspective(1400px) rotateY(-6deg) translateX(26px);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}
+
+@keyframes epub-page-turn-prev {
+  from {
+    opacity: 0;
+    filter: drop-shadow(10px 0 14px rgb(0 0 0 / 0.18));
+    transform: perspective(1400px) rotateY(6deg) translateX(-26px);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}
+
+.epub-page-turn-animate-next {
+  animation: epub-page-turn-next 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: left center;
+}
+
+.epub-page-turn-animate-prev {
+  animation: epub-page-turn-prev 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: right center;
+}
+
+/* Shelf view: the book you're hovering pops into focus, everything else
+   softly falls out of it — a cheap, convincing depth-of-field stand-in. */
+.shelf-grid:has(.shelf-book:hover) .shelf-book:not(:hover) {
+  filter: blur(2.5px) brightness(0.86);
 }

@@ -5,12 +5,14 @@ import { UploadCloud, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { importBookFile } from "@/lib/import-book";
 import { useLibraryStore } from "@/store/useLibraryStore";
+import { toast } from "@/store/useToastStore";
 
 interface UploadDropzoneProps {
   compact?: boolean;
+  onImported?: () => void;
 }
 
-export function UploadDropzone({ compact = false }: UploadDropzoneProps) {
+export function UploadDropzone({ compact = false, onImported }: UploadDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,18 +24,29 @@ export function UploadDropzone({ compact = false }: UploadDropzoneProps) {
       if (!files || files.length === 0) return;
       setError(null);
       setIsImporting(true);
+      const fileList = Array.from(files);
+      let imported = 0;
       try {
-        for (const file of Array.from(files)) {
-          await importBookFile(file);
+        for (const file of fileList) {
+          try {
+            await importBookFile(file);
+            imported++;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "Kitap içe aktarılamadı.";
+            toast.error(`${file.name}: ${message}`);
+            setError(message);
+          }
         }
-        await refresh();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Kitap içe aktarılamadı.");
+        if (imported > 0) {
+          await refresh();
+          toast.success(imported === 1 ? "Kitap eklendi." : `${imported} kitap eklendi.`);
+          onImported?.();
+        }
       } finally {
         setIsImporting(false);
       }
     },
-    [refresh]
+    [refresh, onImported]
   );
 
   return (

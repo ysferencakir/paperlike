@@ -35,7 +35,7 @@ import {
 } from "@/lib/storage";
 import type { Book, Bookmark, Highlight, ImportanceLevel } from "@/lib/types";
 import { resolveColors, resolveTheme } from "@/lib/reader-theme";
-import { cn } from "@/lib/utils";
+import { cn, generateId } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 import { EpubReaderSurface } from "./EpubReaderSurface";
@@ -301,7 +301,7 @@ export function ReaderView({ bookId }: { bookId: string }) {
   const handleConfirmHighlight = async (color: string, importance: ImportanceLevel) => {
     if (!pendingSelection) return;
     const highlight: Highlight = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       bookId,
       location: pendingSelection.location,
       text: pendingSelection.text,
@@ -343,7 +343,7 @@ export function ReaderView({ bookId }: { bookId: string }) {
       return;
     }
     const bookmark: Bookmark = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       bookId,
       location: progress.location,
       label:

@@ -44,3 +44,13 @@ next-env.d.ts
 /graphify-out
 /scratchpad
 /test
+
+# capacitor / android build outputs
+/android/app/build
+/android/build
+/android/.gradle
+/android/local.properties
+/android/app/src/main/assets/public
+/android/captures
+*.keystore
+*.jks

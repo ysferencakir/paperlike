@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { generateId } from "@/lib/utils";
 
 export type ToastVariant = "default" | "success" | "error";
 
@@ -21,7 +22,7 @@ export const useToastStore = create<ToastState>((set) => ({
 }));
 
 function push(message: string, variant: ToastVariant) {
-  const id = crypto.randomUUID();
+  const id = generateId();
   useToastStore.setState((state) => ({ toasts: [...state.toasts, { id, message, variant }] }));
   setTimeout(() => useToastStore.getState().dismiss(id), DEFAULT_DURATION_MS);
 }

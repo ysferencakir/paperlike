@@ -75,7 +75,25 @@ interface EpubReaderSurfaceProps {
 // book.opened. Bound how long we wait so a bad file degrades to an error
 // state instead of a permanently blank/crashed reader.
 const OPEN_TIMEOUT_MS = 10000;
-const TAP_MOVE_THRESHOLD = 6;
+// Fractions of the current page's own width — not raw pixels. epub.js lays
+// each section out as one continuous multi-column document and only shows a
+// horizontal slice of it per "page", so contents.window.innerWidth is the
+// width of the *whole section* (every column back to back), not the single
+// visible page; a touch's clientX is likewise measured against that full
+// width. Comparing against fixed pixel counts broke as soon as a section
+// spanned more than one page. Everything below works in fractions of one
+// page-width instead, which stays correct regardless of section length.
+const TAP_MOVE_FRACTION = 0.02;
+const SWIPE_FRACTION = 0.1;
+
+/** epub.js's own single-page pixel width (`rendition.manager.layout.width`)
+ *  isn't part of its public TS types, but it's the only accurate source —
+ *  contents.window.innerWidth is the whole multi-page section instead. */
+function getPageWidth(rendition: Rendition, contents: Contents): number {
+  const layoutWidth = (rendition as unknown as { manager?: { layout?: { width?: number } } })
+    .manager?.layout?.width;
+  return layoutWidth || contents.window?.innerWidth || 1;
+}
 
 function pointFromEvent(e: MouseEvent | TouchEvent, which: "start" | "end"): { x: number; y: number } | null {
   if ("touches" in e) {
@@ -306,13 +324,29 @@ export const EpubReaderSurface = forwardRef<ReaderSurfaceHandle, EpubReaderSurfa
             downPos = null;
             const end = pointFromEvent(e, "end");
             if (!start || !end) return;
+            const pageWidth = getPageWidth(rendition, contents);
+            const dx = end.x - start.x;
+            const dy = end.y - start.y;
+
+            // A fast horizontal drag — the "flip the page" gesture most
+            // readers expect — regardless of where it started/ended.
+            if (Math.abs(dx) > pageWidth * SWIPE_FRACTION && Math.abs(dx) > Math.abs(dy)) {
+              onTapRef.current?.(dx < 0 ? "next" : "prev");
+              return;
+            }
+
             const moved =
-              Math.abs(end.x - start.x) > TAP_MOVE_THRESHOLD ||
-              Math.abs(end.y - start.y) > TAP_MOVE_THRESHOLD;
-            if (moved) return; // was a selection drag, not a tap
-            const width = contents.window?.innerWidth || 1;
-            if (end.x < width * 0.28) onTapRef.current?.("prev");
-            else if (end.x > width * 0.72) onTapRef.current?.("next");
+              Math.abs(dx) > pageWidth * TAP_MOVE_FRACTION ||
+              Math.abs(dy) > pageWidth * TAP_MOVE_FRACTION;
+            if (moved) return; // ambiguous small drag — leave it to text selection
+
+            // contents.window's coordinate space spans the whole section
+            // (every page's column back to back), so reduce the tap position
+            // to "how far across the *currently visible* page" before
+            // comparing it against the edge zones.
+            const localX = ((end.x % pageWidth) + pageWidth) % pageWidth;
+            if (localX < pageWidth * 0.28) onTapRef.current?.("prev");
+            else if (localX > pageWidth * 0.72) onTapRef.current?.("next");
             else onTapRef.current?.("middle");
           };
           rendition.on("mousedown", onDown);

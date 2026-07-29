@@ -2,6 +2,7 @@ import { addBook } from "./storage";
 import type { Book, BookFormat } from "./types";
 import { parseEpubFile } from "./epub-loader";
 import { parsePdfFile } from "./pdf-loader";
+import { generateId } from "./utils";
 
 function detectFormat(file: File): BookFormat | null {
   const name = file.name.toLowerCase();
@@ -31,7 +32,7 @@ export async function importBookFile(file: File): Promise<Book> {
       : await parsePdfFile(file, fallbackTitle);
 
   const book: Book = {
-    id: crypto.randomUUID(),
+    id: generateId(),
     title: parsed.title || fallbackTitle,
     author: parsed.author || "Bilinmeyen Yazar",
     format,

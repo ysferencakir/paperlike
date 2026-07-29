@@ -12,6 +12,23 @@ export function formatBytes(bytes: number): string {
   return `${(kb / 1024).toFixed(1)} MB`
 }
 
+/** crypto.randomUUID() is only defined in secure contexts (https/localhost); this
+ *  falls back to crypto.getRandomValues (or Math.random as a last resort) so ID
+ *  generation still works over plain http, e.g. testing on a phone via LAN IP. */
+export function generateId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = crypto.getRandomValues(new Uint8Array(16))
+    bytes[6] = (bytes[6] & 0x0f) | 0x40
+    bytes[8] = (bytes[8] & 0x3f) | 0x80
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+  }
+  return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`
+}
+
 export function formatRelativeDate(timestamp: number): string {
   const days = Math.floor((Date.now() - timestamp) / (24 * 60 * 60 * 1000))
   if (days <= 0) return "bugün"

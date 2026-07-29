@@ -6,10 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "cap:sync": "next build && npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:dev:sync": "cross-env CAP_DEV=true npx cap sync android",
+    "android:dev": "cross-env CAP_DEV=true next dev -H 0.0.0.0"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "docx": "^9.7.1",
@@ -27,10 +33,12 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "shadcn": "^4.14.1",

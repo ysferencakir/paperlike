@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { BarChart3, LayoutGrid, Library, LibraryBig, List, Plus, Search } from "lucide-react";
+import { BarChart3, LayoutGrid, Library, LibraryBig, List, Plus, Search, Tag } from "lucide-react";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { useLibraryViewStore } from "@/store/useLibraryViewStore";
 import type { BookFormat } from "@/lib/types";
@@ -28,6 +28,7 @@ import { BookCard } from "./BookCard";
 import { BookListRow } from "./BookListRow";
 import { ShelfView } from "./ShelfView";
 import { ReadingStatsPanel } from "./ReadingStatsPanel";
+import { CategoryDialog } from "./CategoryDialog";
 
 type SortOption = "recent" | "title" | "author";
 type FormatFilter = "all" | BookFormat;
@@ -43,6 +44,7 @@ export function LibraryView() {
   const { viewMode, setViewMode } = useLibraryViewStore();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [categoryOpen, setCategoryOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortOption>("recent");
   const [formatFilter, setFormatFilter] = useState<FormatFilter>("all");
@@ -98,6 +100,14 @@ export function LibraryView() {
                 onClick={() => setStatsOpen(true)}
               >
                 <BarChart3 className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Kategori ekle"
+                onClick={() => setCategoryOpen(true)}
+              >
+                <Tag className="size-4" />
               </Button>
               <Button size="sm" onClick={() => setUploadOpen(true)} className="gap-1.5">
                 <Plus className="size-3.5" />
@@ -274,6 +284,7 @@ export function LibraryView() {
       </Dialog>
 
       <ReadingStatsPanel open={statsOpen} onOpenChange={setStatsOpen} />
+      <CategoryDialog open={categoryOpen} onOpenChange={setCategoryOpen} />
     </div>
   );
 }

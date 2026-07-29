@@ -7,7 +7,10 @@ interface LibraryState {
   loaded: boolean;
   refresh: () => Promise<void>;
   removeBook: (bookId: string) => Promise<void>;
-  renameBook: (bookId: string, patch: Partial<Pick<Book, "title" | "author">>) => Promise<void>;
+  renameBook: (
+    bookId: string,
+    patch: Partial<Pick<Book, "title" | "author" | "category">>
+  ) => Promise<void>;
 }
 
 export const useLibraryStore = create<LibraryState>((set) => ({

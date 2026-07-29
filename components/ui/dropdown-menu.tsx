@@ -43,6 +43,16 @@ function DropdownMenuContent({
           data-slot="dropdown-menu-content"
           className={cn("z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 outline-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:overflow-hidden data-closed:fade-out-0 data-closed:zoom-out-95", className )}
           {...props}
+          // Content renders through a portal, so it's mounted outside
+          // whatever card/row this menu lives in — but React still bubbles
+          // its synthetic click events along the *component* tree, not the
+          // DOM tree. Without this, clicking an item (e.g. inside a book
+          // card that's wrapped in a Link) fires the item's own handler and
+          // then keeps bubbling straight into the Link, navigating away.
+          onClick={(e) => {
+            props.onClick?.(e);
+            e.stopPropagation();
+          }}
         />
       </MenuPrimitive.Positioner>
     </MenuPrimitive.Portal>

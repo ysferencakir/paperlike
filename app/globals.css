@@ -226,5 +226,5 @@
 /* Shelf view: the book you're hovering pops into focus, everything else
    softly falls out of it — a cheap, convincing depth-of-field stand-in. */
 .shelf-grid:has(.shelf-book:hover) .shelf-book:not(:hover) {
-  filter: blur(2.5px) brightness(0.86);
+  filter: blur(4px) brightness(0.7);
 }

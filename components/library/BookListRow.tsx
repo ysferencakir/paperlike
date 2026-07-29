@@ -38,7 +38,7 @@ export function BookListRow({ book }: { book: Book }) {
 
   return (
     <Link
-      href={`/reader/${book.id}`}
+      href={`/reader?bookId=${book.id}`}
       className="group flex items-center gap-3.5 rounded-xl px-2 py-2 hover:bg-muted"
     >
       <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-md bg-muted shadow-sm ring-1 ring-black/5">

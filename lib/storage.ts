@@ -117,7 +117,7 @@ export async function getBookCover(bookId: string): Promise<Blob | undefined> {
 
 export async function updateBook(
   bookId: string,
-  patch: Partial<Pick<Book, "title" | "author">>
+  patch: Partial<Pick<Book, "title" | "author" | "category">>
 ): Promise<Book | undefined> {
   const db = await getDB();
   const existing = await db.get("books", bookId);

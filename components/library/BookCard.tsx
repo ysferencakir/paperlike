@@ -37,7 +37,7 @@ export function BookCard({ book }: { book: Book }) {
   };
 
   return (
-    <Link href={`/reader/${book.id}`} className="group flex flex-col gap-2.5">
+    <Link href={`/reader?bookId=${book.id}`} className="group flex flex-col gap-2.5">
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-muted shadow-sm ring-1 ring-black/5 transition-all duration-300 ease-out group-hover:-translate-y-1 group-hover:shadow-xl group-hover:ring-black/10">
         <BookCover book={book} />
 

@@ -7,6 +7,8 @@ export interface Book {
   format: BookFormat;
   addedAt: number;
   fileSize: number;
+  /** Freeform shelf category, e.g. "Roman", "Bilim Kurgu". Unset = uncategorized. */
+  category?: string;
 }
 
 export interface BookFile {

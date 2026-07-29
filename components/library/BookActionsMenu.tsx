@@ -5,6 +5,7 @@ import { Info, MoreHorizontal, PenLine } from "lucide-react";
 import type { Book } from "@/lib/types";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { toast } from "@/store/useToastStore";
+import { formatBytes } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -25,13 +26,6 @@ const FORMAT_LABEL: Record<Book["format"], string> = {
   epub: "EPUB",
   pdf: "PDF",
 };
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  const kb = bytes / 1024;
-  if (kb < 1024) return `${kb.toFixed(0)} KB`;
-  return `${(kb / 1024).toFixed(1)} MB`;
-}
 
 const TRIGGER_CLASSES = {
   overlay:
@@ -57,7 +51,10 @@ export function BookActionsMenu({
           render={
             <button
               type="button"
-              onClick={(e) => e.preventDefault()}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
               aria-label="Kitap seçenekleri"
               className={TRIGGER_CLASSES[variant]}
             />
@@ -87,6 +84,7 @@ export function BookActionsMenu({
           <dl className="flex flex-col gap-2.5 text-sm">
             <Row label="Başlık" value={book.title} />
             <Row label="Yazar" value={book.author} />
+            <Row label="Kategori" value={book.category ?? "Kategorisiz"} />
             <Row label="Format" value={FORMAT_LABEL[book.format]} />
             <Row label="Boyut" value={formatBytes(book.fileSize)} />
             <Row label="Eklenme Tarihi" value={new Date(book.addedAt).toLocaleDateString("tr-TR")} />
@@ -115,15 +113,22 @@ function RenameDialog({
   open: boolean;
   onOpenChange: (value: boolean) => void;
 }) {
+  const books = useLibraryStore((s) => s.books);
   const renameBook = useLibraryStore((s) => s.renameBook);
   const [title, setTitle] = useState(book.title);
   const [author, setAuthor] = useState(book.author);
+  const [category, setCategory] = useState(book.category ?? "");
   const [saving, setSaving] = useState(false);
+
+  const existingCategories = Array.from(
+    new Set(books.map((b) => b.category).filter((c): c is string => !!c))
+  ).sort((a, b) => a.localeCompare(b, "tr"));
 
   const handleOpenChange = (value: boolean) => {
     if (value) {
       setTitle(book.title);
       setAuthor(book.author);
+      setCategory(book.category ?? "");
     }
     onOpenChange(value);
   };
@@ -133,7 +138,11 @@ function RenameDialog({
     if (!trimmedTitle) return;
     setSaving(true);
     try {
-      await renameBook(book.id, { title: trimmedTitle, author: author.trim() || "Bilinmeyen Yazar" });
+      await renameBook(book.id, {
+        title: trimmedTitle,
+        author: author.trim() || "Bilinmeyen Yazar",
+        category: category.trim() || undefined,
+      });
       toast.success("Kitap güncellendi.");
       onOpenChange(false);
     } finally {
@@ -145,8 +154,8 @@ function RenameDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent showCloseButton>
         <DialogHeader>
-          <DialogTitle>Yeniden Adlandır</DialogTitle>
-          <DialogDescription>Başlığı ve yazarı düzenle.</DialogDescription>
+          <DialogTitle>Kitabı Düzenle</DialogTitle>
+          <DialogDescription>Başlığı, yazarı ve rafta göründüğü kategoriyi düzenle.</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1.5 text-sm">
@@ -164,6 +173,32 @@ function RenameDialog({
               onChange={(e) => setAuthor(e.target.value)}
               className="h-9 rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="text-xs font-medium text-muted-foreground">Kategori</span>
+            <input
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="ör. Roman, Bilim Kurgu"
+              className="h-9 rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            />
+            {/* Plain buttons, not a native <datalist> — the browser's own
+                autocomplete popup momentarily pulls focus outside the
+                dialog's DOM, which trips its focus trap and closes it. */}
+            {existingCategories.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {existingCategories.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setCategory(c)}
+                    className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            )}
           </label>
         </div>
         <DialogFooter>

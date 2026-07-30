@@ -218,6 +218,36 @@ export async function addReadingMinutes(minutes: number): Promise<void> {
   await db.put("readingStats", { date, minutes: (existing?.minutes ?? 0) + minutes });
 }
 
+export interface LibraryMetadataDump {
+  progress: ReadingProgress[];
+  highlights: Highlight[];
+  bookmarks: Bookmark[];
+  readingStats: ReadingStatDay[];
+}
+
+/** Everything except book/cover files themselves (those are read separately, per book, as blobs). */
+export async function getAllMetadataForBackup(): Promise<LibraryMetadataDump> {
+  const db = await getDB();
+  const [progress, highlights, bookmarks, readingStats] = await Promise.all([
+    db.getAll("progress"),
+    db.getAll("highlights"),
+    db.getAll("bookmarks"),
+    db.getAll("readingStats"),
+  ]);
+  return { progress, highlights, bookmarks, readingStats };
+}
+
+/** Restores non-file records from a backup. Books/files/covers go through addBook() instead. */
+export async function importMetadata(dump: LibraryMetadataDump): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction(["progress", "highlights", "bookmarks", "readingStats"], "readwrite");
+  for (const p of dump.progress) await tx.objectStore("progress").put(p);
+  for (const h of dump.highlights) await tx.objectStore("highlights").put(h);
+  for (const b of dump.bookmarks) await tx.objectStore("bookmarks").put(b);
+  for (const r of dump.readingStats) await tx.objectStore("readingStats").put(r);
+  await tx.done;
+}
+
 /** Last `days` calendar days (oldest first, ending today), zero-filled for days with no reading. */
 export async function getRecentReadingStats(days: number): Promise<ReadingStatDay[]> {
   const db = await getDB();

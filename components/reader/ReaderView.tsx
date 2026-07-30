@@ -18,7 +18,9 @@ import {
 } from "lucide-react";
 import { useSettingsStore } from "@/store/useSettingsStore";
 import { useReadingGoalStore } from "@/store/useReadingGoalStore";
+import { useOnboardingStore } from "@/store/useOnboardingStore";
 import { toast } from "@/store/useToastStore";
+import { useBackHandlerStore } from "@/store/useBackHandlerStore";
 import {
   addBookmark,
   addHighlight,
@@ -35,6 +37,20 @@ import {
 } from "@/lib/storage";
 import type { Book, Bookmark, Highlight, ImportanceLevel } from "@/lib/types";
 import { resolveColors, resolveTheme } from "@/lib/reader-theme";
+import {
+  syncStatusBar,
+  setImmersive,
+  setKeepAwake,
+  hapticPageTurn,
+  hapticAction,
+  enableVolumeKeyPageTurn,
+  speak,
+  stopSpeaking,
+  scheduleBreakReminder,
+  cancelBreakReminder,
+  setContinueReadingShortcut,
+  updateContinueReadingWidget,
+} from "@/lib/native-ui";
 import { cn, generateId } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
@@ -44,6 +60,7 @@ import { SelectionBar } from "./SelectionBar";
 import { NotesPanel } from "./NotesPanel";
 import { SearchPanel } from "./SearchPanel";
 import { BookOpenTransition } from "./BookOpenTransition";
+import { ReaderOnboarding } from "./ReaderOnboarding";
 import { PageThicknessIndicator } from "./PageThicknessIndicator";
 import { BreakSuggestion } from "./BreakSuggestion";
 import type {
@@ -53,6 +70,11 @@ import type {
   SelectionPayload,
   TocEntry,
 } from "./types";
+import { useTranslation } from "@/lib/i18n/useTranslation";
+
+// Screens at least this wide get a two-page spread automatically (unless the
+// user has manually touched the column toggle — see columnsAutoManaged).
+const TABLET_SPREAD_MIN_WIDTH = 900;
 
 // react-pdf touches browser-only pdf.js internals at module-evaluation time
 // (see lib/pdf-loader.ts) — load it client-only to avoid an SSR crash.
@@ -62,8 +84,28 @@ const PdfReaderSurface = dynamic(
 );
 
 export function ReaderView({ bookId }: { bookId: string }) {
+  const { t, locale } = useTranslation();
   const settings = useSettingsStore();
   const { breakRemindersEnabled, breakIntervalMinutes } = useReadingGoalStore();
+  const seenReaderTutorial = useOnboardingStore((s) => s.seenReaderTutorial);
+  const markReaderTutorialSeen = useOnboardingStore((s) => s.markReaderTutorialSeen);
+  const theme = resolveTheme(settings);
+  const colors = resolveColors(settings);
+  const [isTabletWidth, setIsTabletWidth] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(min-width: ${TABLET_SPREAD_MIN_WIDTH}px)`);
+    const apply = () => setIsTabletWidth(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+  const effectiveColumns: 1 | 2 = settings.columnsAutoManaged
+    ? isTabletWidth
+      ? 2
+      : 1
+    : settings.columns;
+  const epubSettings =
+    effectiveColumns === settings.columns ? settings : { ...settings, columns: effectiveColumns };
   const [chromeVisible, setChromeVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(false);
@@ -116,11 +158,7 @@ export function ReaderView({ bookId }: { bookId: string }) {
 
   // Stop any in-progress read-aloud when leaving this book (route change or unmount).
   useEffect(() => {
-    return () => {
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
+    return () => void stopSpeaking();
   }, [bookId]);
 
   // Quietly counts time spent actually looking at this book, flushed
@@ -137,31 +175,47 @@ export function ReaderView({ bookId }: { bookId: string }) {
       lastTick = now;
     };
 
-    const flushTimer = setInterval(() => {
+    const flush = () => {
       tick();
       if (accumulatedMs >= 1000) {
         void addReadingMinutes(accumulatedMs / 60000);
         accumulatedMs = 0;
       }
-    }, FLUSH_MS);
+    };
+
+    const flushTimer = setInterval(flush, FLUSH_MS);
+    // Backgrounding the app (task switcher, screen lock, ...) can lead to the
+    // process being killed outright before the next interval tick — flush
+    // immediately instead of risking up to FLUSH_MS of reading time with it.
+    document.addEventListener("visibilitychange", flush);
 
     return () => {
       clearInterval(flushTimer);
+      document.removeEventListener("visibilitychange", flush);
       tick();
       if (accumulatedMs > 0) void addReadingMinutes(accumulatedMs / 60000);
     };
   }, [bookId]);
 
   // A single, easy-to-dismiss nudge partway through a long sitting — never
-  // repeats within the same session, never guilt-trips if ignored.
+  // repeats within the same session, never guilt-trips if ignored. Also
+  // schedules a native notification for the same moment, since a plain JS
+  // timer never fires if the app gets backgrounded or killed before then —
+  // cancelled below once the in-app nudge actually shows, so it doesn't
+  // *also* pop as a redundant notification a few seconds later.
   useEffect(() => {
     if (!breakRemindersEnabled) return;
     const timer = setTimeout(() => setBreakSuggested(true), breakIntervalMinutes * 60000);
-    return () => clearTimeout(timer);
-  }, [bookId, breakRemindersEnabled, breakIntervalMinutes]);
+    void scheduleBreakReminder(breakIntervalMinutes, t);
+    return () => {
+      clearTimeout(timer);
+      void cancelBreakReminder();
+    };
+  }, [bookId, breakRemindersEnabled, breakIntervalMinutes, t]);
 
   useEffect(() => {
     if (!breakSuggested) return;
+    void cancelBreakReminder();
     const timer = setTimeout(() => setBreakSuggested(false), 12000);
     return () => clearTimeout(timer);
   }, [breakSuggested]);
@@ -190,20 +244,18 @@ export function ReaderView({ bookId }: { bookId: string }) {
   }, []);
 
   const stopTts = () => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
+    void stopSpeaking();
     setTtsPlaying(false);
   };
 
   const goNext = () => {
     surfaceRef.current?.next();
-    resetIdleTimer();
+    void hapticPageTurn();
     if (ttsPlaying) stopTts();
   };
   const goPrev = () => {
     surfaceRef.current?.prev();
-    resetIdleTimer();
+    void hapticPageTurn();
     if (ttsPlaying) stopTts();
   };
 
@@ -257,6 +309,97 @@ export function ReaderView({ bookId }: { bookId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settingsOpen, tocOpen, notesOpen, searchOpen, pendingSelection]);
 
+  // Same close-topmost-panel priority as Escape above, but for the Android
+  // back button/gesture (see BackButtonHandler). Returning false here — no
+  // panel was open — lets that handler's own fallback take over and
+  // navigate back to the library, exactly like the "Kütüphaneye dön" link.
+  useEffect(() => {
+    const backHandler = () => {
+      if (settingsOpen) {
+        setSettingsOpen(false);
+        return true;
+      }
+      if (tocOpen) {
+        setTocOpen(false);
+        return true;
+      }
+      if (notesOpen) {
+        setNotesOpen(false);
+        return true;
+      }
+      if (searchOpen) {
+        setSearchOpen(false);
+        return true;
+      }
+      if (pendingSelection) {
+        setPendingSelection(null);
+        return true;
+      }
+      return false;
+    };
+    useBackHandlerStore.getState().setHandler(backHandler);
+    return () => useBackHandlerStore.getState().clearHandler(backHandler);
+  }, [settingsOpen, tocOpen, notesOpen, searchOpen, pendingSelection]);
+
+  // Keeps the app icon's "Continue reading" shortcut pointed at whichever
+  // book was opened most recently.
+  useEffect(() => {
+    if (book) void setContinueReadingShortcut(bookId, book.title, t);
+  }, [bookId, book, t]);
+
+  // Keeps the home-screen "continue reading" widget in sync with the book
+  // and page currently being read.
+  useEffect(() => {
+    if (book) void updateContinueReadingWidget(bookId, book.title, progress.percentage);
+  }, [bookId, book, progress.percentage]);
+
+  // Tint the status bar to match whatever the reader itself is showing —
+  // otherwise it stays whatever color the library screen last set it to.
+  useEffect(() => {
+    void syncStatusBar(colors.bg);
+  }, [colors.bg]);
+
+  // Hides the system nav bar for the whole reading session (not tied to
+  // chromeVisible toggling) — hiding/showing it resizes the WebView's
+  // visible viewport, which makes epub.js reflow/repaginate and visibly
+  // "jump". Restore on unmount so leaving the reader doesn't leave the app
+  // stuck immersive.
+  useEffect(() => {
+    void setImmersive(true);
+    return () => void setImmersive(false);
+  }, []);
+
+  // Don't let the screen dim/lock while a book is open — same as every
+  // other e-reader. Restored on unmount regardless of TTS/idle state.
+  useEffect(() => {
+    void setKeepAwake(true);
+    return () => void setKeepAwake(false);
+  }, []);
+
+  // Opt-in: turn pages with the hardware volume buttons. goNext/goPrev are
+  // read through a ref so this effect only has to re-run (re-registering
+  // the native listener) when the setting itself changes, not on every render.
+  const goNextRef = useRef(goNext);
+  goNextRef.current = goNext;
+  const goPrevRef = useRef(goPrev);
+  goPrevRef.current = goPrev;
+  useEffect(() => {
+    if (!settings.volumeKeyPageTurn) return;
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+    void enableVolumeKeyPageTurn((direction) => {
+      if (direction === "down") goNextRef.current();
+      else goPrevRef.current();
+    }).then((c) => {
+      if (cancelled) c();
+      else cleanup = c;
+    });
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, [settings.volumeKeyPageTurn]);
+
   const handleProgress = (info: ReaderProgressInfo) => {
     setProgressInfo(info);
     if (!info.location) return;
@@ -270,32 +413,21 @@ export function ReaderView({ bookId }: { bookId: string }) {
 
   const handleSurfaceError = (err: unknown) => {
     console.error("Reader surface error:", err);
-    setSurfaceError(
-      "Bu kitap açılamadı — dosya bozuk ya da desteklenmeyen bir yapıda olabilir."
-    );
+    setSurfaceError(t("reader.openError"));
   };
 
   const toggleTts = async () => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      toast.error("Tarayıcın sesli okumayı desteklemiyor.");
-      return;
-    }
     if (ttsPlaying) {
       stopTts();
       return;
     }
     const text = await surfaceRef.current?.getCurrentText();
     if (!text?.trim()) {
-      toast.error("Bu sayfada okunacak metin bulunamadı.");
+      toast.error(t("reader.noTextOnPage"));
       return;
     }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "tr-TR";
-    utterance.onend = () => setTtsPlaying(false);
-    utterance.onerror = () => setTtsPlaying(false);
-    window.speechSynthesis.speak(utterance);
     setTtsPlaying(true);
+    void speak(text, locale === "tr" ? "tr-TR" : "en-US", () => setTtsPlaying(false));
   };
 
   const handleConfirmHighlight = async (color: string, importance: ImportanceLevel) => {
@@ -313,6 +445,7 @@ export function ReaderView({ bookId }: { bookId: string }) {
     setHighlights((prev) => [...prev, highlight]);
     surfaceRef.current?.applyHighlight(highlight.location, color);
     setPendingSelection(null);
+    void hapticAction();
   };
 
   const handleDeleteHighlight = async (id: string) => {
@@ -340,6 +473,7 @@ export function ReaderView({ bookId }: { bookId: string }) {
     if (existing) {
       await deleteBookmark(existing.id);
       setBookmarks((prev) => prev.filter((b) => b.id !== existing.id));
+      void hapticAction();
       return;
     }
     const bookmark: Bookmark = {
@@ -348,11 +482,14 @@ export function ReaderView({ bookId }: { bookId: string }) {
       location: progress.location,
       label:
         progress.label ||
-        (progress.page ? `Sayfa ${progress.page}` : book?.title ?? "Konum"),
+        (progress.page
+          ? t("reader.pageLabel", { page: progress.page })
+          : book?.title ?? t("reader.locationFallback")),
       createdAt: Date.now(),
     };
     await addBookmark(bookmark);
     setBookmarks((prev) => [...prev, bookmark]);
+    void hapticAction();
   };
 
   const handleDeleteBookmark = async (id: string) => {
@@ -368,9 +505,9 @@ export function ReaderView({ bookId }: { bookId: string }) {
   if (book === null) {
     return (
       <div className="flex h-dvh w-full flex-col items-center justify-center gap-3 bg-background text-center">
-        <p className="text-sm text-muted-foreground">Bu kitap bulunamadı.</p>
+        <p className="text-sm text-muted-foreground">{t("reader.bookNotFound")}</p>
         <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/" />}>
-          Kütüphaneye dön
+          {t("reader.backToLibrary")}
         </Button>
       </div>
     );
@@ -384,8 +521,6 @@ export function ReaderView({ bookId }: { bookId: string }) {
     );
   }
 
-  const theme = resolveTheme(settings);
-  const colors = resolveColors(settings);
   const themeStyle =
     theme === "custom"
       ? ({
@@ -402,9 +537,21 @@ export function ReaderView({ bookId }: { bookId: string }) {
         theme !== "custom" && `reader-theme-${theme}`
       )}
       style={themeStyle}
-      onMouseMove={resetIdleTimer}
+      onMouseMove={(e) => {
+        // Touch devices fire a synthetic, zero-delta "mousemove" right after
+        // every tap for compatibility with mouse-only listeners — without
+        // this check, that reopens the chrome the instant a tap closes it.
+        if (e.movementX === 0 && e.movementY === 0) return;
+        resetIdleTimer();
+      }}
     >
       {!introDone && <BookOpenTransition book={book} onDone={() => setIntroDone(true)} />}
+
+      <AnimatePresence>
+        {introDone && !seenReaderTutorial && (
+          <ReaderOnboarding onDismiss={markReaderTutorialSeen} />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {chromeVisible && (
@@ -413,7 +560,7 @@ export function ReaderView({ bookId }: { bookId: string }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -14 }}
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-3 pb-6 pt-4 backdrop-blur-md sm:px-6"
+            className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-3 pb-6 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-md sm:px-6"
             style={{
               background:
                 "linear-gradient(to bottom, color-mix(in oklch, var(--reader-bg), transparent 8%), transparent)",
@@ -424,6 +571,7 @@ export function ReaderView({ bookId }: { bookId: string }) {
               size="icon-sm"
               nativeButton={false}
               render={<Link href="/" />}
+              aria-label={t("reader.backToLibrary")}
               className="hover:bg-[color-mix(in_oklch,var(--reader-fg),transparent_92%)]"
               style={{ color: "var(--reader-fg)" }}
             >
@@ -441,7 +589,7 @@ export function ReaderView({ bookId }: { bookId: string }) {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label={ttsPlaying ? "Sesli okumayı durdur" : "Sesli oku"}
+                aria-label={ttsPlaying ? t("reader.stopReadAloud") : t("reader.readAloud")}
                 onClick={() => void toggleTts()}
                 className="hover:bg-[color-mix(in_oklch,var(--reader-fg),transparent_92%)]"
                 style={{ color: "var(--reader-fg)" }}
@@ -451,7 +599,7 @@ export function ReaderView({ bookId }: { bookId: string }) {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Kitapta ara"
+                aria-label={t("reader.searchInBook")}
                 onClick={() => setSearchOpen(true)}
                 className="hover:bg-[color-mix(in_oklch,var(--reader-fg),transparent_92%)]"
                 style={{ color: "var(--reader-fg)" }}
@@ -461,7 +609,7 @@ export function ReaderView({ bookId }: { bookId: string }) {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Notlarım"
+                aria-label={t("reader.notes")}
                 onClick={() => setNotesOpen(true)}
                 className="hover:bg-[color-mix(in_oklch,var(--reader-fg),transparent_92%)]"
                 style={{ color: "var(--reader-fg)" }}
@@ -471,7 +619,7 @@ export function ReaderView({ bookId }: { bookId: string }) {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label={isBookmarked ? "Yer imini kaldır" : "Yer imi ekle"}
+                aria-label={isBookmarked ? t("reader.removeBookmark") : t("reader.addBookmark")}
                 onClick={() => void toggleBookmark()}
                 className="hover:bg-[color-mix(in_oklch,var(--reader-fg),transparent_92%)]"
                 style={{ color: "var(--reader-fg)" }}
@@ -482,7 +630,7 @@ export function ReaderView({ bookId }: { bookId: string }) {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="İçindekiler"
+                  aria-label={t("reader.toc")}
                   onClick={() => setTocOpen(true)}
                   className="hover:bg-[color-mix(in_oklch,var(--reader-fg),transparent_92%)]"
                   style={{ color: "var(--reader-fg)" }}
@@ -493,7 +641,7 @@ export function ReaderView({ bookId }: { bookId: string }) {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Ayarlar"
+                aria-label={t("reader.settings")}
                 onClick={() => setSettingsOpen(true)}
                 className="hover:bg-[color-mix(in_oklch,var(--reader-fg),transparent_92%)]"
                 style={{ color: "var(--reader-fg)" }}
@@ -523,14 +671,14 @@ export function ReaderView({ bookId }: { bookId: string }) {
               <AlertTriangle className="size-6 text-muted-foreground" />
               <p className="max-w-xs text-sm text-muted-foreground">{surfaceError}</p>
               <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/" />}>
-                Kütüphaneye dön
+                {t("reader.backToLibrary")}
               </Button>
             </div>
           ) : book.format === "epub" ? (
             <EpubReaderSurface
               ref={surfaceRef}
               file={file}
-              settings={settings}
+              settings={epubSettings}
               colors={colors}
               initialLocation={initialLocation}
               onProgress={handleProgress}
@@ -551,6 +699,8 @@ export function ReaderView({ bookId }: { bookId: string }) {
               onSelection={setPendingSelection}
               pageTurnAnimation={settings.pageTurnAnimation}
               pageBg={colors.bg}
+              scrollMode={settings.scrollMode}
+              onScrollModeChange={(value) => settings.update({ scrollMode: value })}
             />
           )}
         </div>
@@ -579,7 +729,7 @@ export function ReaderView({ bookId }: { bookId: string }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 14 }}
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute inset-x-0 bottom-0 z-20 flex flex-col gap-2 px-5 pb-5 pt-8 backdrop-blur-md sm:px-8"
+            className="absolute inset-x-0 bottom-0 z-20 flex flex-col gap-2 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-8 backdrop-blur-md sm:px-8"
             style={{
               background:
                 "linear-gradient(to top, color-mix(in oklch, var(--reader-bg), transparent 8%), transparent)",

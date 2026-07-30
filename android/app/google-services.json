@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1071982847125",
+    "project_id": "paperlike-18a95",
+    "storage_bucket": "paperlike-18a95.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1071982847125:android:3728b5f89659177048679c",
+        "android_client_info": {
+          "package_name": "com.ysferencakir.paperlike"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDX_iA9MDlv5YG2jkXf2XKkiYpTdkCW7Aw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -12,6 +12,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 /**
  * Creating a category from a single book's edit dialog meant clicking into
@@ -25,6 +26,7 @@ export function CategoryDialog({
   open: boolean;
   onOpenChange: (value: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const books = useLibraryStore((s) => s.books);
   const renameBook = useLibraryStore((s) => s.renameBook);
   const [name, setName] = useState("");
@@ -56,7 +58,7 @@ export function CategoryDialog({
       await Promise.all(
         Array.from(selected).map((bookId) => renameBook(bookId, { category: trimmedName }))
       );
-      toast.success(`"${trimmedName}" kategorisi oluşturuldu.`);
+      toast.success(t("category.created", { name: trimmedName }));
       handleOpenChange(false);
     } finally {
       setSaving(false);
@@ -67,30 +69,31 @@ export function CategoryDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent showCloseButton>
         <DialogHeader>
-          <DialogTitle>Kategori Ekle</DialogTitle>
-          <DialogDescription>
-            Bir kategori adı belirle ve rafta bu kategoride görünecek kitapları seç.
-          </DialogDescription>
+          <DialogTitle>{t("category.addTitle")}</DialogTitle>
+          <DialogDescription>{t("category.addDescription")}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1.5 text-sm">
-            <span className="text-xs font-medium text-muted-foreground">Kategori Adı</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              {t("category.nameLabel")}
+            </span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="ör. Roman, Bilim Kurgu"
+              placeholder={t("category.namePlaceholder")}
               className="h-9 rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             />
           </label>
 
           <div className="flex flex-col gap-1.5">
             <span className="text-xs font-medium text-muted-foreground">
-              Kitaplar {selected.size > 0 && `(${selected.size} seçili)`}
+              {t("category.booksLabel")}{" "}
+              {selected.size > 0 && t("category.selectedCount", { count: selected.size })}
             </span>
             <div className="flex max-h-64 flex-col gap-0.5 overflow-y-auto rounded-lg border border-border p-1">
               {books.length === 0 ? (
                 <p className="px-2 py-3 text-center text-xs text-muted-foreground">
-                  Henüz kitap yok.
+                  {t("category.noBooks")}
                 </p>
               ) : (
                 books.map((book) => (
@@ -118,10 +121,10 @@ export function CategoryDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
-            Vazgeç
+            {t("common.cancel")}
           </Button>
           <Button onClick={() => void handleSave()} disabled={saving || !name.trim() || selected.size === 0}>
-            Kaydet
+            {t("common.save")}
           </Button>
         </DialogFooter>
       </DialogContent>

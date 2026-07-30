@@ -23,23 +23,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { syncStatusBar } from "@/lib/native-ui";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 import { UploadDropzone } from "./UploadDropzone";
 import { BookCard } from "./BookCard";
 import { BookListRow } from "./BookListRow";
 import { ShelfView } from "./ShelfView";
 import { ReadingStatsPanel } from "./ReadingStatsPanel";
 import { CategoryDialog } from "./CategoryDialog";
+import { BackupMenu } from "./BackupMenu";
 
 type SortOption = "recent" | "title" | "author";
 type FormatFilter = "all" | BookFormat;
 
-const SORT_LABELS: Record<SortOption, string> = {
-  recent: "Son Eklenen",
-  title: "Başlığa Göre",
-  author: "Yazara Göre",
-};
-
 export function LibraryView() {
+  const { t, locale } = useTranslation();
   const { books, loaded, refresh } = useLibraryStore();
   const { viewMode, setViewMode } = useLibraryViewStore();
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -49,9 +47,23 @@ export function LibraryView() {
   const [sort, setSort] = useState<SortOption>("recent");
   const [formatFilter, setFormatFilter] = useState<FormatFilter>("all");
 
+  const SORT_LABELS: Record<SortOption, string> = {
+    recent: t("library.sortRecent"),
+    title: t("library.sortTitle"),
+    author: t("library.sortAuthor"),
+  };
+
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => void syncStatusBar(mq.matches ? "#0a0a0a" : "#fbfaf8");
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   const hasBooks = books.length > 0;
 
@@ -65,15 +77,19 @@ export function LibraryView() {
       );
     }
     const sorted = [...result];
-    if (sort === "title") sorted.sort((a, b) => a.title.localeCompare(b.title, "tr"));
-    else if (sort === "author") sorted.sort((a, b) => a.author.localeCompare(b.author, "tr"));
+    const compareLocale = locale === "tr" ? "tr" : "en";
+    if (sort === "title") sorted.sort((a, b) => a.title.localeCompare(b.title, compareLocale));
+    else if (sort === "author") sorted.sort((a, b) => a.author.localeCompare(b.author, compareLocale));
     // "recent" already comes pre-sorted (newest first) from the store.
     return sorted;
-  }, [books, query, formatFilter, sort]);
+  }, [books, query, formatFilter, sort, locale]);
 
   return (
     <div className="min-h-dvh w-full bg-[#fbfaf8] dark:bg-[#0a0a0a]">
-      <header className="sticky top-0 z-10 border-b border-black/5 bg-[#fbfaf8]/80 backdrop-blur-md dark:border-white/5 dark:bg-[#0a0a0a]/80">
+      <header
+        className="sticky top-0 z-10 border-b border-black/5 bg-[#fbfaf8]/80 backdrop-blur-md dark:border-white/5 dark:bg-[#0a0a0a]/80"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
           <div className="flex items-center gap-2.5">
             <span className="flex size-8 items-center justify-center rounded-lg bg-foreground text-background">
@@ -81,40 +97,43 @@ export function LibraryView() {
             </span>
             <div className="flex flex-col leading-none">
               <span className="font-reader-serif text-[15px] font-semibold text-foreground">
-                Kütüphanem
+                {t("library.title")}
               </span>
               {loaded && (
                 <span className="text-[11px] text-muted-foreground">
-                  {books.length} kitap
+                  {t("library.bookCount", { count: books.length })}
                 </span>
               )}
             </div>
           </div>
 
-          {hasBooks && (
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Okuma istatistiklerin"
-                onClick={() => setStatsOpen(true)}
-              >
-                <BarChart3 className="size-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Kategori ekle"
-                onClick={() => setCategoryOpen(true)}
-              >
-                <Tag className="size-4" />
-              </Button>
-              <Button size="sm" onClick={() => setUploadOpen(true)} className="gap-1.5">
-                <Plus className="size-3.5" />
-                Kitap Ekle
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center gap-1.5">
+            <BackupMenu />
+            {hasBooks && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t("library.stats")}
+                  onClick={() => setStatsOpen(true)}
+                >
+                  <BarChart3 className="size-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t("library.addCategory")}
+                  onClick={() => setCategoryOpen(true)}
+                >
+                  <Tag className="size-4" />
+                </Button>
+                <Button size="sm" onClick={() => setUploadOpen(true)} className="gap-1.5">
+                  <Plus className="size-3.5" />
+                  {t("library.addBook")}
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         {hasBooks && (
@@ -124,7 +143,7 @@ export function LibraryView() {
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Kitap veya yazar ara…"
+                placeholder={t("library.searchPlaceholder")}
                 className="h-full w-full bg-transparent text-sm outline-none"
               />
             </div>
@@ -150,15 +169,15 @@ export function LibraryView() {
               }}
               variant="outline"
             >
-              <ToggleGroupItem value="all">Tümü</ToggleGroupItem>
-              <ToggleGroupItem value="epub">EPUB</ToggleGroupItem>
-              <ToggleGroupItem value="pdf">PDF</ToggleGroupItem>
+              <ToggleGroupItem value="all">{t("format.all")}</ToggleGroupItem>
+              <ToggleGroupItem value="epub">{t("format.epub")}</ToggleGroupItem>
+              <ToggleGroupItem value="pdf">{t("format.pdf")}</ToggleGroupItem>
             </ToggleGroup>
 
             <div className="ml-auto flex items-center gap-0.5 rounded-lg border border-border p-0.5">
               <button
                 type="button"
-                aria-label="Izgara görünümü"
+                aria-label={t("library.gridView")}
                 onClick={() => setViewMode("grid")}
                 className={cn(
                   "flex size-7 items-center justify-center rounded-md transition-colors",
@@ -171,7 +190,7 @@ export function LibraryView() {
               </button>
               <button
                 type="button"
-                aria-label="Liste görünümü"
+                aria-label={t("library.listView")}
                 onClick={() => setViewMode("list")}
                 className={cn(
                   "flex size-7 items-center justify-center rounded-md transition-colors",
@@ -184,7 +203,7 @@ export function LibraryView() {
               </button>
               <button
                 type="button"
-                aria-label="Raf görünümü"
+                aria-label={t("library.shelfView")}
                 onClick={() => setViewMode("shelf")}
                 className={cn(
                   "flex size-7 items-center justify-center rounded-md transition-colors",
@@ -214,7 +233,7 @@ export function LibraryView() {
         ) : hasBooks ? (
           visibleBooks.length === 0 ? (
             <p className="py-16 text-center text-sm text-muted-foreground">
-              Aramanla eşleşen kitap bulunamadı.
+              {t("library.noSearchResults")}
             </p>
           ) : viewMode === "grid" ? (
             <div className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
@@ -261,11 +280,9 @@ export function LibraryView() {
             <div className="w-full max-w-md">
               <div className="mb-8 text-center">
                 <h1 className="font-reader-serif mb-1.5 text-2xl font-semibold text-foreground">
-                  Kütüphanen boş
+                  {t("library.emptyTitle")}
                 </h1>
-                <p className="text-sm text-muted-foreground">
-                  İlk kitabını ekleyerek okumaya başla — EPUB ya da PDF.
-                </p>
+                <p className="text-sm text-muted-foreground">{t("library.emptySubtitle")}</p>
               </div>
               <UploadDropzone />
             </div>
@@ -276,8 +293,8 @@ export function LibraryView() {
       <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
         <DialogContent showCloseButton>
           <DialogHeader>
-            <DialogTitle>Kitap Ekle</DialogTitle>
-            <DialogDescription>EPUB veya PDF dosyanı sürükleyip bırak.</DialogDescription>
+            <DialogTitle>{t("library.uploadTitle")}</DialogTitle>
+            <DialogDescription>{t("library.uploadDescription")}</DialogDescription>
           </DialogHeader>
           <UploadDropzone compact onImported={() => setUploadOpen(false)} />
         </DialogContent>

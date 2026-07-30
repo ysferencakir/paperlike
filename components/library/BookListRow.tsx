@@ -9,13 +9,10 @@ import { toast } from "@/store/useToastStore";
 import { cn } from "@/lib/utils";
 import { BookCover } from "./BookCover";
 import { BookActionsMenu } from "./BookActionsMenu";
-
-const FORMAT_LABEL: Record<Book["format"], string> = {
-  epub: "EPUB",
-  pdf: "PDF",
-};
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 export function BookListRow({ book }: { book: Book }) {
+  const { t } = useTranslation();
   const removeBook = useLibraryStore((s) => s.removeBook);
   const [confirming, setConfirming] = useState(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -33,7 +30,7 @@ export function BookListRow({ book }: { book: Book }) {
       return;
     }
     if (resetTimer.current) clearTimeout(resetTimer.current);
-    void removeBook(book.id).then(() => toast.message("Kitap silindi."));
+    void removeBook(book.id).then(() => toast.message(t("book.deleted")));
   };
 
   return (
@@ -51,7 +48,7 @@ export function BookListRow({ book }: { book: Book }) {
       </div>
 
       <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground">
-        {FORMAT_LABEL[book.format]}
+        {t(book.format === "epub" ? "format.epub" : "format.pdf")}
       </span>
 
       <div className="flex shrink-0 items-center gap-0.5">
@@ -59,7 +56,7 @@ export function BookListRow({ book }: { book: Book }) {
         <button
           type="button"
           onClick={handleDeleteClick}
-          aria-label={confirming ? "Silmeyi onayla" : "Kitabı sil"}
+          aria-label={confirming ? t("book.confirmDelete") : t("book.delete")}
           className={cn(
             "flex size-7 items-center justify-center rounded-full opacity-0 transition-all duration-150 group-hover:opacity-100",
             confirming

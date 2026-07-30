@@ -22,7 +22,10 @@ export function Toaster() {
   const dismiss = useToastStore((s) => s.dismiss);
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-5 z-[100] flex flex-col items-center gap-2 px-4">
+    <div
+      className="pointer-events-none fixed inset-x-0 z-[100] flex flex-col items-center gap-2 px-4"
+      style={{ bottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
+    >
       <AnimatePresence initial={false}>
         {toasts.map((t) => {
           const Icon = ICONS[t.variant];

@@ -6,6 +6,7 @@ import type { Book as EpubBook, Contents, Location as EpubLocation, Rendition } 
 import type { ReaderSettings } from "@/lib/types";
 import type { ReaderProgressInfo, ReaderSurfaceHandle, SearchResult, SelectionPayload, TocEntry } from "./types";
 import { PageCurlOverlay, PAGE_CURL_TOTAL_MS } from "./PageCurlOverlay";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 interface SearchableSection {
   load: (request: (path: string) => Promise<unknown>) => Promise<unknown>;
@@ -83,16 +84,32 @@ const OPEN_TIMEOUT_MS = 10000;
 // width. Comparing against fixed pixel counts broke as soon as a section
 // spanned more than one page. Everything below works in fractions of one
 // page-width instead, which stays correct regardless of section length.
-const TAP_MOVE_FRACTION = 0.02;
+// Generous on purpose: a real fingertip tap on a touchscreen naturally
+// jitters by several CSS pixels between touchstart and touchend — a mouse
+// click doesn't — so too tight a threshold here reliably drops real taps
+// as "moved" (treated as a selection-drag) while working fine with a mouse.
+const TAP_MOVE_FRACTION = 0.04;
 const SWIPE_FRACTION = 0.1;
+// Android's system "swipe from the edge to go back" gesture claims a thin
+// strip at the left/right of the screen. A swipe starting inside that strip
+// is the user reaching for the OS gesture, not our page-turn one — leave it
+// alone rather than fight it for the same touch.
+const EDGE_EXCLUSION_FRACTION = 0.05;
 
-/** epub.js's own single-page pixel width (`rendition.manager.layout.width`)
- *  isn't part of its public TS types, but it's the only accurate source —
- *  contents.window.innerWidth is the whole multi-page section instead. */
-function getPageWidth(rendition: Rendition, contents: Contents): number {
-  const layoutWidth = (rendition as unknown as { manager?: { layout?: { width?: number } } })
-    .manager?.layout?.width;
-  return layoutWidth || contents.window?.innerWidth || 1;
+/**
+ * The single visible page's width, in the same coordinate space as a touch
+ * event's clientX inside the content iframe. Deliberately *not*
+ * `contents.window.innerWidth` (the whole section's multi-column width,
+ * confirmed by logging to be in the tens of thousands of units for a
+ * several-page section — using it as "one page" broke every fraction-based
+ * threshold below) and *not* any undocumented epub.js internal (guessing at
+ * `rendition.manager.layout.width` didn't reliably pan out either). epub.js
+ * sizes each CSS column to exactly match the stage/container it was given,
+ * so this element's own rendered width is that same figure, with zero
+ * dependency on epub.js internals.
+ */
+function getPageWidth(container: HTMLElement | null, contents: Contents): number {
+  return container?.getBoundingClientRect().width || contents.window?.innerWidth || 1;
 }
 
 function pointFromEvent(e: MouseEvent | TouchEvent, which: "start" | "end"): { x: number; y: number } | null {
@@ -126,8 +143,13 @@ export const EpubReaderSurface = forwardRef<ReaderSurfaceHandle, EpubReaderSurfa
     highlightsRef.current = highlights;
     const colorsRef = useRef(colors);
     colorsRef.current = colors;
+    const { t } = useTranslation();
+    const tRef = useRef(t);
+    tRef.current = t;
     const pageTurnAnimRef = useRef(settings.pageTurnAnimation);
     pageTurnAnimRef.current = settings.pageTurnAnimation;
+    const scrollModeRef = useRef(settings.scrollMode);
+    scrollModeRef.current = settings.scrollMode;
     // Tracks the margin currently reflected in the container's own padding,
     // so the settings effect only forces an epub.js resize (expensive
     // reflow) when the margin actually changed.
@@ -252,7 +274,7 @@ export const EpubReaderSurface = forwardRef<ReaderSurfaceHandle, EpubReaderSurfa
               await book.opened;
             })(),
             new Promise((_, reject) =>
-              setTimeout(() => reject(new Error("EPUB açma zaman aşımına uğradı")), OPEN_TIMEOUT_MS)
+              setTimeout(() => reject(new Error(tRef.current("epub.openTimeout"))), OPEN_TIMEOUT_MS)
             ),
           ]);
           if (cancelled || !containerRef.current) return;
@@ -270,7 +292,7 @@ export const EpubReaderSurface = forwardRef<ReaderSurfaceHandle, EpubReaderSurfa
           const rendition = book.renderTo(containerRef.current, {
             width: "100%",
             height: "100%",
-            flow: "paginated",
+            flow: settings.scrollMode ? "scrolled-doc" : "paginated",
             spread: settings.columns === 2 ? "always" : "none",
             allowScriptedContent: false,
           });
@@ -316,21 +338,47 @@ export const EpubReaderSurface = forwardRef<ReaderSurfaceHandle, EpubReaderSurfa
           // a tap from a selection-drag in there, since the iframe is a
           // separate browsing context real pointer events never bubble out of.
           let downPos: { x: number; y: number } | null = null;
+          // Touchscreens fire a synthetic, compatibility mousedown/mouseup
+          // shortly after every real touchstart/touchend — without this,
+          // every tap ran through onUp *twice*, and since toggleChrome is a
+          // toggle (not idempotent), the second call undid what the first
+          // one just did (chrome opened, then immediately closed again).
+          let lastTouchTime = 0;
+          const isGhostMouseEvent = (e: MouseEvent | TouchEvent) =>
+            !("touches" in e) && Date.now() - lastTouchTime < 800;
           const onDown = (e: MouseEvent | TouchEvent) => {
+            if ("touches" in e) lastTouchTime = Date.now();
+            else if (isGhostMouseEvent(e)) return;
             downPos = pointFromEvent(e, "start");
           };
           const onUp = (e: MouseEvent | TouchEvent, contents: Contents) => {
+            if ("touches" in e) lastTouchTime = Date.now();
+            else if (isGhostMouseEvent(e)) return;
             const start = downPos;
             downPos = null;
             const end = pointFromEvent(e, "end");
             if (!start || !end) return;
-            const pageWidth = getPageWidth(rendition, contents);
+            const pageWidth = getPageWidth(containerRef.current, contents);
             const dx = end.x - start.x;
             const dy = end.y - start.y;
 
+            const localStartX = ((start.x % pageWidth) + pageWidth) % pageWidth;
+            const startedInEdgeStrip =
+              localStartX < pageWidth * EDGE_EXCLUSION_FRACTION ||
+              localStartX > pageWidth * (1 - EDGE_EXCLUSION_FRACTION);
+
             // A fast horizontal drag — the "flip the page" gesture most
-            // readers expect — regardless of where it started/ended.
-            if (Math.abs(dx) > pageWidth * SWIPE_FRACTION && Math.abs(dx) > Math.abs(dy)) {
+            // readers expect — regardless of where it started/ended. Unless
+            // it started in the system back-gesture strip, in which case
+            // leave that touch to Android rather than also acting on it.
+            // Skipped entirely in scroll mode — vertical dragging there is
+            // just the reader's own scroll, not a page-turn swipe.
+            if (
+              !scrollModeRef.current &&
+              !startedInEdgeStrip &&
+              Math.abs(dx) > pageWidth * SWIPE_FRACTION &&
+              Math.abs(dx) > Math.abs(dy)
+            ) {
               onTapRef.current?.(dx < 0 ? "next" : "prev");
               return;
             }
@@ -340,14 +388,9 @@ export const EpubReaderSurface = forwardRef<ReaderSurfaceHandle, EpubReaderSurfa
               Math.abs(dy) > pageWidth * TAP_MOVE_FRACTION;
             if (moved) return; // ambiguous small drag — leave it to text selection
 
-            // contents.window's coordinate space spans the whole section
-            // (every page's column back to back), so reduce the tap position
-            // to "how far across the *currently visible* page" before
-            // comparing it against the edge zones.
-            const localX = ((end.x % pageWidth) + pageWidth) % pageWidth;
-            if (localX < pageWidth * 0.28) onTapRef.current?.("prev");
-            else if (localX > pageWidth * 0.72) onTapRef.current?.("next");
-            else onTapRef.current?.("middle");
+            // No more left/right edge zones — page turning is swipe-only
+            // now (handled above). Any plain tap just toggles the chrome.
+            onTapRef.current?.("middle");
           };
           rendition.on("mousedown", onDown);
           rendition.on("touchstart", onDown);
@@ -450,4 +493,5 @@ function applySettings(rendition: Rendition, settings: ReaderSettings, colors: {
   rendition.themes.override("line-height", String(settings.lineHeight), true);
   rendition.themes.override("color", colors.fg, true);
   rendition.spread(settings.columns === 2 ? "always" : "none");
+  rendition.flow(settings.scrollMode ? "scrolled-doc" : "paginated");
 }

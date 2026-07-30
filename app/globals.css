@@ -123,6 +123,9 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Kills Android's "glow" overscroll effect — it reads as a stray web
+       page artifact rather than the native-feeling app this is wrapped as. */
+    overscroll-behavior: none;
   }
   html {
     @apply font-sans;

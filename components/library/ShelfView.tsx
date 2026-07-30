@@ -10,17 +10,13 @@ import { getBookCover, getProgress } from "@/lib/storage";
 import { formatBytes, formatRelativeDate } from "@/lib/utils";
 import { BookCover } from "./BookCover";
 import { BookActionsMenu } from "./BookActionsMenu";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 const ROW_HEIGHT = 184;
 const PLANK_HEIGHT = 10;
 const SPINE_WIDTH = 34;
 const SPINE_HEIGHT = 156;
 const COVER_WIDTH = 104;
-
-const FORMAT_LABEL: Record<Book["format"], string> = {
-  epub: "EPUB",
-  pdf: "PDF",
-};
 
 // Two-stage reveal: first pull toward the viewer (z up, slight scale) with
 // no turn yet, then swing left while the rotation opens the cover into
@@ -56,7 +52,7 @@ const UNCATEGORIZED = "Kategorisiz";
 
 // Named categories alphabetically first, uncategorized books trail in their
 // own shelf last — that group is the fallback, not a "real" category.
-function groupByCategory(books: Book[]): Array<[string, Book[]]> {
+function groupByCategory(books: Book[], compareLocale: string): Array<[string, Book[]]> {
   const groups = new Map<string, Book[]>();
   for (const book of books) {
     const key = book.category?.trim() || UNCATEGORIZED;
@@ -67,7 +63,7 @@ function groupByCategory(books: Book[]): Array<[string, Book[]]> {
   return Array.from(groups.entries()).sort(([a], [b]) => {
     if (a === UNCATEGORIZED) return 1;
     if (b === UNCATEGORIZED) return -1;
-    return a.localeCompare(b, "tr");
+    return a.localeCompare(b, compareLocale);
   });
 }
 
@@ -88,7 +84,8 @@ function groupByCategory(books: Book[]): Array<[string, Book[]]> {
  * so an uncategorized library still reads as a single plain shelf.
  */
 export function ShelfView({ books }: { books: Book[] }) {
-  const groups = groupByCategory(books);
+  const { t, locale } = useTranslation();
+  const groups = groupByCategory(books, locale === "tr" ? "tr" : "en");
   const showLabels = !(groups.length === 1 && groups[0][0] === UNCATEGORIZED);
 
   return (
@@ -97,9 +94,9 @@ export function ShelfView({ books }: { books: Book[] }) {
         <section key={category}>
           {showLabels && (
             <h3 className="mb-2 px-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              {category}
+              {category === UNCATEGORIZED ? t("shelf.uncategorized") : category}
               <span className="ml-1.5 font-normal normal-case text-muted-foreground/60">
-                · {groupBooks.length} kitap
+                {t("shelf.categoryBookCount", { count: groupBooks.length })}
               </span>
             </h3>
           )}
@@ -156,6 +153,7 @@ function ShelfRow({ books }: { books: Book[] }) {
 }
 
 function ShelfBook({ book }: { book: Book }) {
+  const { t, locale } = useTranslation();
   const [spineColor, setSpineColor] = useState(() => spineColorFor(book.id));
   const [progress, setProgress] = useState<ReadingProgress | undefined>();
   const [hovered, setHovered] = useState(false);
@@ -323,7 +321,7 @@ function ShelfBook({ book }: { book: Book }) {
             </span>
             <span className="truncate text-[11px] text-muted-foreground">{book.author}</span>
             <span className="w-fit rounded-md bg-muted px-1.5 py-0.5 text-[9.5px] font-medium tracking-wide text-muted-foreground">
-              {FORMAT_LABEL[book.format]}
+              {t(book.format === "epub" ? "format.epub" : "format.pdf")}
             </span>
 
             {progress ? (
@@ -335,15 +333,21 @@ function ShelfBook({ book }: { book: Book }) {
                   />
                 </div>
                 <span className="text-[10px] text-muted-foreground">
-                  %{Math.round(progress.percentage)} okundu · {formatRelativeDate(progress.updatedAt)}
+                  {t("shelf.progress", {
+                    percentage: Math.round(progress.percentage),
+                    relativeDate: formatRelativeDate(progress.updatedAt, t),
+                  })}
                 </span>
               </div>
             ) : (
-              <span className="text-[10px] text-muted-foreground">Henüz başlanmadı</span>
+              <span className="text-[10px] text-muted-foreground">{t("shelf.notStarted")}</span>
             )}
 
             <span className="whitespace-normal text-[9.5px] leading-snug text-muted-foreground/70">
-              {formatBytes(book.fileSize)} · {new Date(book.addedAt).toLocaleDateString("tr-TR")} eklendi
+              {t("shelf.sizeAndAdded", {
+                size: formatBytes(book.fileSize),
+                date: new Date(book.addedAt).toLocaleDateString(locale === "tr" ? "tr-TR" : "en-US"),
+              })}
             </span>
           </div>
         </div>

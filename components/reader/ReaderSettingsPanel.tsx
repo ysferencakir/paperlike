@@ -1,7 +1,19 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Columns2, Contrast, Flame, Minus, Moon, Plus, Rows3, Sparkles, Sun } from "lucide-react";
+import {
+  Columns2,
+  Contrast,
+  Flame,
+  Minus,
+  Moon,
+  Plus,
+  Rows3,
+  ScrollText,
+  Sparkles,
+  Sun,
+  Volume2,
+} from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -13,28 +25,29 @@ import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useSettingsStore } from "@/store/useSettingsStore";
 import {
-  PAGE_TURN_ANIMATION_LABELS,
+  PAGE_TURN_ANIMATION_KEYS,
   type FontFamilyOption,
   type PageTurnAnimationLevel,
   type ReaderTheme,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
-const THEMES: { id: ReaderTheme; label: string; bg: string }[] = [
-  { id: "light", label: "Açık", bg: "#ffffff" },
-  { id: "cream", label: "Krem", bg: "#f7f3e9" },
-  { id: "sepia", label: "Sepya", bg: "#f4ecd8" },
-  { id: "dark", label: "Koyu", bg: "#1e1e1e" },
-  { id: "coffee", label: "Kahve", bg: "#2b2420" },
-  { id: "oled-black", label: "Siyah", bg: "#000000" },
+const THEME_IDS: { id: ReaderTheme; labelKey: string; bg: string }[] = [
+  { id: "light", labelKey: "theme.light", bg: "#ffffff" },
+  { id: "cream", labelKey: "theme.cream", bg: "#f7f3e9" },
+  { id: "sepia", labelKey: "theme.sepia", bg: "#f4ecd8" },
+  { id: "dark", labelKey: "theme.dark", bg: "#1e1e1e" },
+  { id: "coffee", labelKey: "theme.coffee", bg: "#2b2420" },
+  { id: "oled-black", labelKey: "theme.oledBlack", bg: "#000000" },
 ];
 
-const FONTS: { id: FontFamilyOption; label: string; className: string }[] = [
-  { id: "literata", label: "Literata", className: "font-reader-literata" },
-  { id: "lora", label: "Lora", className: "font-reader-lora" },
-  { id: "garamond", label: "Garamond", className: "font-reader-garamond" },
-  { id: "sans", label: "Sans", className: "font-reader-sans" },
-  { id: "dyslexic", label: "Dyslexic", className: "font-reader-dyslexic" },
+const FONT_IDS: { id: FontFamilyOption; labelKey: string; className: string }[] = [
+  { id: "literata", labelKey: "font.literata", className: "font-reader-literata" },
+  { id: "lora", labelKey: "font.lora", className: "font-reader-lora" },
+  { id: "garamond", labelKey: "font.garamond", className: "font-reader-garamond" },
+  { id: "sans", labelKey: "font.sans", className: "font-reader-sans" },
+  { id: "dyslexic", labelKey: "font.dyslexic", className: "font-reader-dyslexic" },
 ];
 
 export function ReaderSettingsPanel({
@@ -44,6 +57,7 @@ export function ReaderSettingsPanel({
   open: boolean;
   onOpenChange: (value: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const settings = useSettingsStore();
 
   return (
@@ -55,22 +69,22 @@ export function ReaderSettingsPanel({
       >
         <div className="mx-auto mb-2 h-1 w-9 shrink-0 rounded-full bg-muted-foreground/25" />
         <SheetHeader className="p-0 pb-4">
-          <SheetTitle className="text-[15px]">Okuma Ayarları</SheetTitle>
+          <SheetTitle className="text-[15px]">{t("settings.title")}</SheetTitle>
         </SheetHeader>
 
         <div className="flex flex-col gap-7 overflow-y-auto pb-1 pr-1">
           <section>
             <p className="mb-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              Tema
+              {t("settings.theme")}
             </p>
             <div className="grid grid-cols-4 gap-2.5">
-              {THEMES.map((t) => {
-                const active = settings.theme === t.id;
+              {THEME_IDS.map((theme) => {
+                const active = settings.theme === theme.id;
                 return (
                   <button
-                    key={t.id}
+                    key={theme.id}
                     type="button"
-                    onClick={() => settings.update({ theme: t.id })}
+                    onClick={() => settings.update({ theme: theme.id })}
                     className={cn(
                       "flex flex-col items-center gap-2 rounded-2xl border p-3 transition-all",
                       active
@@ -80,9 +94,9 @@ export function ReaderSettingsPanel({
                   >
                     <span
                       className="size-7 rounded-full border border-black/10 shadow-sm"
-                      style={{ backgroundColor: t.bg }}
+                      style={{ backgroundColor: theme.bg }}
                     />
-                    <span className="text-[11px] text-muted-foreground">{t.label}</span>
+                    <span className="text-[11px] text-muted-foreground">{t(theme.labelKey as Parameters<typeof t>[0])}</span>
                   </button>
                 );
               })}
@@ -102,19 +116,19 @@ export function ReaderSettingsPanel({
                     background: `linear-gradient(135deg, ${settings.customBg} 50%, ${settings.customFg} 50%)`,
                   }}
                 />
-                <span className="text-[11px] text-muted-foreground">Özel</span>
+                <span className="text-[11px] text-muted-foreground">{t("theme.custom")}</span>
               </button>
             </div>
 
             {settings.theme === "custom" && (
               <div className="mt-3 flex items-center gap-4 rounded-xl border border-border p-3">
                 <ColorField
-                  label="Arka Plan"
+                  label={t("settings.background")}
                   value={settings.customBg}
                   onChange={(v) => settings.update({ customBg: v })}
                 />
                 <ColorField
-                  label="Yazı"
+                  label={t("settings.textColor")}
                   value={settings.customFg}
                   onChange={(v) => settings.update({ customFg: v })}
                 />
@@ -124,7 +138,7 @@ export function ReaderSettingsPanel({
             <div className="mt-3 flex items-center justify-between">
               <span className="flex items-center gap-2 text-sm text-foreground">
                 <Moon className="size-4 text-muted-foreground" />
-                Otomatik Gece Modu
+                {t("settings.autoNightMode")}
               </span>
               <Switch
                 checked={settings.autoNightMode}
@@ -136,7 +150,7 @@ export function ReaderSettingsPanel({
           <section className="flex flex-col gap-5">
             <SliderRow
               icon={<Sun className="size-4" />}
-              label="Parlaklık"
+              label={t("settings.brightness")}
               value={settings.brightness}
               min={50}
               max={150}
@@ -145,7 +159,7 @@ export function ReaderSettingsPanel({
             />
             <SliderRow
               icon={<Contrast className="size-4" />}
-              label="Kontrast"
+              label={t("settings.contrast")}
               value={settings.contrast}
               min={50}
               max={150}
@@ -154,7 +168,7 @@ export function ReaderSettingsPanel({
             />
             <SliderRow
               icon={<Flame className="size-4" />}
-              label="Sıcaklık"
+              label={t("settings.warmth")}
               value={settings.warmth}
               min={0}
               max={100}
@@ -164,7 +178,7 @@ export function ReaderSettingsPanel({
 
           <section className="flex flex-col gap-3">
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              Yazı Tipi
+              {t("settings.fontFamily")}
             </p>
             <ToggleGroup
               value={[settings.fontFamily]}
@@ -175,13 +189,13 @@ export function ReaderSettingsPanel({
               variant="outline"
               className="w-full flex-wrap"
             >
-              {FONTS.map((f) => (
+              {FONT_IDS.map((f) => (
                 <ToggleGroupItem
                   key={f.id}
                   value={f.id}
                   className={cn("min-w-[31%] flex-1", f.className)}
                 >
-                  {f.label}
+                  {t(f.labelKey as Parameters<typeof t>[0])}
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
@@ -208,7 +222,7 @@ export function ReaderSettingsPanel({
 
             <SliderRow
               icon={<Rows3 className="size-4" />}
-              label="Satır Aralığı"
+              label={t("settings.lineHeight")}
               value={Math.round(settings.lineHeight * 10)}
               min={12}
               max={22}
@@ -218,10 +232,10 @@ export function ReaderSettingsPanel({
 
           <section className="flex flex-col gap-4">
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              Düzen
+              {t("settings.layout")}
             </p>
             <SliderRow
-              label="Kenar Boşluğu"
+              label={t("settings.margin")}
               value={settings.margin}
               min={8}
               max={64}
@@ -229,50 +243,79 @@ export function ReaderSettingsPanel({
               onChange={(v) => settings.update({ margin: v })}
             />
 
-            {/* Two-column layout only makes sense with room to spare — hidden below sm. */}
-            <div className="hidden items-center justify-between sm:flex">
+            <div className="flex items-center justify-between">
               <span className="flex items-center gap-2 text-sm text-foreground">
-                <Columns2 className="size-4 text-muted-foreground" />
-                Sütun
+                <ScrollText className="size-4 text-muted-foreground" />
+                {t("settings.scrollMode")}
               </span>
-              <ToggleGroup
-                value={[String(settings.columns)]}
-                onValueChange={(v) => {
-                  const next = v[0];
-                  if (next) settings.update({ columns: Number(next) as 1 | 2 });
-                }}
-                variant="outline"
-              >
-                <ToggleGroupItem value="1">1</ToggleGroupItem>
-                <ToggleGroupItem value="2">2</ToggleGroupItem>
-              </ToggleGroup>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 text-foreground">
-                  <Sparkles className="size-4 text-muted-foreground" />
-                  Sayfa Geçiş Animasyonu
-                </span>
-                <span className="text-muted-foreground">
-                  {PAGE_TURN_ANIMATION_LABELS[settings.pageTurnAnimation]}
-                </span>
-              </div>
-              <Slider
-                value={[settings.pageTurnAnimation]}
-                min={0}
-                max={2}
-                step={1}
-                onValueChange={(v) => {
-                  const next = Array.isArray(v) ? v[0] : v;
-                  if (Number.isFinite(next)) {
-                    settings.update({
-                      pageTurnAnimation: Math.round(next) as PageTurnAnimationLevel,
-                    });
-                  }
-                }}
+              <Switch
+                checked={settings.scrollMode}
+                onCheckedChange={(checked) => settings.update({ scrollMode: checked })}
               />
             </div>
+
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2 text-sm text-foreground">
+                <Volume2 className="size-4 text-muted-foreground" />
+                {t("settings.volumeKeyPageTurn")}
+              </span>
+              <Switch
+                checked={settings.volumeKeyPageTurn}
+                onCheckedChange={(checked) => settings.update({ volumeKeyPageTurn: checked })}
+              />
+            </div>
+
+            {/* Two-column layout only makes sense with room to spare — hidden below sm. */}
+            {!settings.scrollMode && (
+              <div className="hidden items-center justify-between sm:flex">
+                <span className="flex items-center gap-2 text-sm text-foreground">
+                  <Columns2 className="size-4 text-muted-foreground" />
+                  {t("settings.columns")}
+                </span>
+                <ToggleGroup
+                  value={[String(settings.columns)]}
+                  onValueChange={(v) => {
+                    const next = v[0];
+                    // Manually choosing a value opts out of the tablet-width
+                    // auto-switching (see ReaderView) — it now sticks to
+                    // whatever's picked here, on any screen size.
+                    if (next) settings.update({ columns: Number(next) as 1 | 2, columnsAutoManaged: false });
+                  }}
+                  variant="outline"
+                >
+                  <ToggleGroupItem value="1">1</ToggleGroupItem>
+                  <ToggleGroupItem value="2">2</ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+            )}
+
+            {!settings.scrollMode && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-2 text-foreground">
+                    <Sparkles className="size-4 text-muted-foreground" />
+                    {t("settings.pageTurnAnimation")}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {t(PAGE_TURN_ANIMATION_KEYS[settings.pageTurnAnimation])}
+                  </span>
+                </div>
+                <Slider
+                  value={[settings.pageTurnAnimation]}
+                  min={0}
+                  max={2}
+                  step={1}
+                  onValueChange={(v) => {
+                    const next = Array.isArray(v) ? v[0] : v;
+                    if (Number.isFinite(next)) {
+                      settings.update({
+                        pageTurnAnimation: Math.round(next) as PageTurnAnimationLevel,
+                      });
+                    }
+                  }}
+                />
+              </div>
+            )}
           </section>
         </div>
       </SheetContent>

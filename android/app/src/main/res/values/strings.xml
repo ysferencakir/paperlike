@@ -4,4 +4,6 @@
     <string name="title_activity_main">Paperlike</string>
     <string name="package_name">com.ysferencakir.paperlike</string>
     <string name="custom_url_scheme">com.ysferencakir.paperlike</string>
+    <string name="widget_empty_state">Henüz açık bir kitap yok</string>
+    <string name="widget_description">Şu an okuduğun kitabı ve ilerlemeni gösterir</string>
 </resources>

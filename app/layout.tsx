@@ -1,6 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { EB_Garamond, Geist, Geist_Mono, Literata, Lora } from "next/font/google";
 import { Toaster } from "@/components/ui/toast";
+import { BackButtonHandler } from "@/components/BackButtonHandler";
+import { OpenFileHandler } from "@/components/OpenFileHandler";
+import { ShortcutHandler } from "@/components/ShortcutHandler";
+import { CrashReportingHandler } from "@/components/CrashReportingHandler";
+// import { BiometricLockGate } from "@/components/BiometricLockGate"; // see note below
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,6 +31,13 @@ export const metadata: Metadata = {
   description: "E-ink hissiyatlı EPUB/PDF okuyucu",
 };
 
+// viewportFit: "cover" is what makes env(safe-area-inset-*) return real
+// values instead of always 0 — without it, content can render under a
+// notch/status bar/rounded corners with no way to detect it in CSS.
+export const viewport: Viewport = {
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -39,6 +51,14 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {children}
         <Toaster />
+        <BackButtonHandler />
+        <OpenFileHandler />
+        <ShortcutHandler />
+        <CrashReportingHandler />
+        {/* Disabled again — still locked the user out in practice even with
+            the deviceIsSecure fallback + escape-hatch link. Not worth the
+            risk for this app; leaving the code in place but off. */}
+        {/* <BiometricLockGate /> */}
       </body>
     </html>
   );

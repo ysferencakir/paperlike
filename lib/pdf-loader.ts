@@ -1,3 +1,5 @@
+import type { Translate } from "./i18n/useTranslation";
+
 let workerConfigured = false;
 
 // pdfjs (via react-pdf) touches browser-only globals like DOMMatrix at
@@ -18,13 +20,13 @@ export interface ParsedPdf {
   coverBlob?: Blob;
 }
 
-export async function parsePdfFile(file: Blob, fallbackTitle: string): Promise<ParsedPdf> {
+export async function parsePdfFile(file: Blob, fallbackTitle: string, t: Translate): Promise<ParsedPdf> {
   const pdfjs = await loadPdfjs();
   const arrayBuffer = await file.arrayBuffer();
   const doc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
 
   let title = fallbackTitle;
-  let author = "Bilinmeyen Yazar";
+  let author = t("pdfLoader.unknownAuthor");
   try {
     const meta = await doc.getMetadata();
     const info = meta.info as { Title?: string; Author?: string };

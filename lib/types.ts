@@ -37,10 +37,11 @@ export type FontFamilyOption = "literata" | "lora" | "garamond" | "sans" | "dysl
 /** 0 = off, 1 = soft tilt/slide, 2 = a fuller page-flip with a moving fold shadow. */
 export type PageTurnAnimationLevel = 0 | 1 | 2;
 
-export const PAGE_TURN_ANIMATION_LABELS: Record<PageTurnAnimationLevel, string> = {
-  0: "Kapalı",
-  1: "Yumuşak",
-  2: "Gerçekçi",
+// Maps each level to its i18n key (not the label itself — see lib/i18n).
+export const PAGE_TURN_ANIMATION_KEYS: Record<PageTurnAnimationLevel, "pageTurnAnimation.off" | "pageTurnAnimation.soft" | "pageTurnAnimation.realistic"> = {
+  0: "pageTurnAnimation.off",
+  1: "pageTurnAnimation.soft",
+  2: "pageTurnAnimation.realistic",
 };
 
 export interface ReaderSettings {
@@ -58,6 +59,14 @@ export interface ReaderSettings {
   /** px, horizontal page margin */
   margin: number;
   columns: 1 | 2;
+  /** While true, columns auto-switches to 2 on tablet-width screens instead
+   *  of following the stored `columns` value — turned off (sticking to
+   *  `columns` everywhere) the moment the user manually taps the toggle. */
+  columnsAutoManaged: boolean;
+  /** Continuous vertical scroll instead of page-by-page. */
+  scrollMode: boolean;
+  /** Turn pages with the hardware volume buttons instead of changing media volume. */
+  volumeKeyPageTurn: boolean;
   pageTurnAnimation: PageTurnAnimationLevel;
   /** Overrides `theme` with dark/oled during local night hours. */
   autoNightMode: boolean;
@@ -76,6 +85,9 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   lineHeight: 1.6,
   margin: 32,
   columns: 1,
+  columnsAutoManaged: true,
+  scrollMode: false,
+  volumeKeyPageTurn: false,
   pageTurnAnimation: 1,
   autoNightMode: false,
   customBg: "#f7f1e3",
@@ -88,11 +100,12 @@ export type HighlightColor = (typeof HIGHLIGHT_COLORS)[number];
 /** 0 = no special importance, 1-3 = star rating ("Önemli" .. "Çok Önemli"). */
 export type ImportanceLevel = 0 | 1 | 2 | 3;
 
-export const IMPORTANCE_LABELS: Record<ImportanceLevel, string> = {
-  0: "Normal",
-  1: "Önemli",
-  2: "Çok Önemli",
-  3: "Kritik",
+// Maps each level to its i18n key (not the label itself — see lib/i18n).
+export const IMPORTANCE_KEYS: Record<ImportanceLevel, "importance.normal" | "importance.important" | "importance.veryImportant" | "importance.critical"> = {
+  0: "importance.normal",
+  1: "importance.important",
+  2: "importance.veryImportant",
+  3: "importance.critical",
 };
 
 export interface Highlight {

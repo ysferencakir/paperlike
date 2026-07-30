@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android's default Auto Backup silently excludes app_webview/ (where the
+  WebView keeps IndexedDB, i.e. the entire library) unless told otherwise —
+  meaning without this file, allowBackup="true" gives a false sense of
+  security: the device backs up, the user assumes their books are safe, and
+  the one thing that actually matters never leaves the device.
+  This file covers API < 31; see data_extraction_rules.xml for 31+.
+-->
+<full-backup-content>
+    <include domain="root" path="app_webview/" />
+</full-backup-content>

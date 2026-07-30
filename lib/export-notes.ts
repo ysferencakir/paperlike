@@ -1,14 +1,14 @@
-import { BorderStyle, Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
-import jsPDF from "jspdf";
 import type { Book, Highlight } from "./types";
-import { IMPORTANCE_LABELS } from "./types";
+import { IMPORTANCE_KEYS } from "./types";
+import type { Translate } from "./i18n/useTranslation";
+import type { Paragraph as DocxParagraph } from "docx";
 
 function sortedByCreatedAt(highlights: Highlight[]): Highlight[] {
   return [...highlights].sort((a, b) => a.createdAt - b.createdAt);
 }
 
-function safeFileName(name: string): string {
-  return name.replace(/[\\/:*?"<>|]/g, "-").trim() || "Kitap";
+function safeFileName(name: string, t: Translate): string {
+  return name.replace(/[\\/:*?"<>|]/g, "-").trim() || t("exportNotes.defaultBookName");
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -22,10 +22,17 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export async function exportHighlightsToWord(book: Book, highlights: Highlight[]): Promise<void> {
+export async function exportHighlightsToWord(
+  book: Book,
+  highlights: Highlight[],
+  t: Translate
+): Promise<void> {
+  // Loaded on demand — docx is only needed for this one rarely-used export
+  // action, not worth carrying in every route that can reach NotesPanel.
+  const { BorderStyle, Document, HeadingLevel, Packer, Paragraph, TextRun } = await import("docx");
   const items = sortedByCreatedAt(highlights);
 
-  const children: Paragraph[] = [
+  const children: DocxParagraph[] = [
     new Paragraph({ text: book.title, heading: HeadingLevel.TITLE }),
     new Paragraph({
       spacing: { after: 400 },
@@ -35,7 +42,7 @@ export async function exportHighlightsToWord(book: Book, highlights: Highlight[]
 
   items.forEach((h, i) => {
     const meta = [`${i + 1}.`];
-    if (h.importance > 0) meta.push(IMPORTANCE_LABELS[h.importance]);
+    if (h.importance > 0) meta.push(t(IMPORTANCE_KEYS[h.importance]));
 
     children.push(
       new Paragraph({
@@ -65,15 +72,20 @@ export async function exportHighlightsToWord(book: Book, highlights: Highlight[]
   });
 
   if (items.length === 0) {
-    children.push(new Paragraph({ text: "Henüz vurgu eklenmemiş." }));
+    children.push(new Paragraph({ text: t("exportNotes.noHighlights") }));
   }
 
   const doc = new Document({ sections: [{ children }] });
   const blob = await Packer.toBlob(doc);
-  downloadBlob(blob, `${safeFileName(book.title)} - Notlar.docx`);
+  downloadBlob(blob, t("exportNotes.wordFilename", { title: safeFileName(book.title, t) }));
 }
 
-export function exportHighlightsToPdf(book: Book, highlights: Highlight[]): void {
+export async function exportHighlightsToPdf(
+  book: Book,
+  highlights: Highlight[],
+  t: Translate
+): Promise<void> {
+  const { default: jsPDF } = await import("jspdf");
   const items = sortedByCreatedAt(highlights);
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -104,7 +116,7 @@ export function exportHighlightsToPdf(book: Book, highlights: Highlight[]): void
   if (items.length === 0) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
-    doc.text("Henüz vurgu eklenmemiş.", margin, y);
+    doc.text(t("exportNotes.noHighlights"), margin, y);
   }
 
   items.forEach((h, i) => {
@@ -112,7 +124,7 @@ export function exportHighlightsToPdf(book: Book, highlights: Highlight[]): void
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.setTextColor(140, 140, 140);
-    const label = h.importance > 0 ? `${i + 1}.  ${IMPORTANCE_LABELS[h.importance]}` : `${i + 1}.`;
+    const label = h.importance > 0 ? `${i + 1}.  ${t(IMPORTANCE_KEYS[h.importance])}` : `${i + 1}.`;
     doc.text(label.toUpperCase(), margin + 14, y);
     doc.setTextColor(20, 20, 20);
     y += 14;
@@ -138,5 +150,5 @@ export function exportHighlightsToPdf(book: Book, highlights: Highlight[]): void
     y += 18;
   });
 
-  doc.save(`${safeFileName(book.title)} - Notlar.pdf`);
+  doc.save(t("exportNotes.pdfFilename", { title: safeFileName(book.title, t) }));
 }

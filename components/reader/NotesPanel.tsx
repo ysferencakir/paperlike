@@ -29,6 +29,7 @@ import type { Book, Bookmark, Highlight, ImportanceLevel } from "@/lib/types";
 import { toast } from "@/store/useToastStore";
 import { cn } from "@/lib/utils";
 import { exportHighlightsToPdf, exportHighlightsToWord } from "@/lib/export-notes";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 export function NotesPanel({
   open,
@@ -53,15 +54,16 @@ export function NotesPanel({
   onUpdateImportance: (id: string, importance: ImportanceLevel) => void;
   onDeleteBookmark: (id: string) => void;
 }) {
+  const { t, locale } = useTranslation();
   const [tab, setTab] = useState<"highlights" | "bookmarks">("highlights");
   const [editing, setEditing] = useState<Highlight | null>(null);
 
   const handleExport = async (format: "word" | "pdf") => {
     try {
-      if (format === "word") await exportHighlightsToWord(book, highlights);
-      else exportHighlightsToPdf(book, highlights);
+      if (format === "word") await exportHighlightsToWord(book, highlights, t);
+      else await exportHighlightsToPdf(book, highlights, t);
     } catch {
-      toast.error("Dışa aktarma başarısız oldu.");
+      toast.error(t("notes.exportFailed"));
     }
   };
 
@@ -73,12 +75,12 @@ export function NotesPanel({
           className="gap-0 border-none bg-popover/95 px-0 pb-6 pt-3 shadow-2xl backdrop-blur-xl"
         >
           <SheetHeader className="flex-row items-center justify-between gap-2 px-5 pb-3 space-y-0">
-            <SheetTitle className="text-[15px]">Notlarım</SheetTitle>
+            <SheetTitle className="text-[15px]">{t("notes.title")}</SheetTitle>
             {tab === "highlights" && highlights.length > 0 && (
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
-                    <Button variant="ghost" size="icon-sm" aria-label="Dışa aktar" />
+                    <Button variant="ghost" size="icon-sm" aria-label={t("notes.export")} />
                   }
                 >
                   <Download className="size-4" />
@@ -86,11 +88,11 @@ export function NotesPanel({
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => void handleExport("word")}>
                     <FileText />
-                    Word olarak indir (.docx)
+                    {t("notes.exportWord")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => void handleExport("pdf")}>
                     <FileText />
-                    PDF olarak indir
+                    {t("notes.exportPdf")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -108,10 +110,10 @@ export function NotesPanel({
               className="w-full"
             >
               <ToggleGroupItem value="highlights" className="flex-1">
-                Vurgular ({highlights.length})
+                {t("notes.highlightsCount", { count: highlights.length })}
               </ToggleGroupItem>
               <ToggleGroupItem value="bookmarks" className="flex-1">
-                Yer İmleri ({bookmarks.length})
+                {t("notes.bookmarksCount", { count: bookmarks.length })}
               </ToggleGroupItem>
             </ToggleGroup>
           </div>
@@ -119,7 +121,7 @@ export function NotesPanel({
           <div className="flex flex-col gap-1.5 overflow-y-auto px-3">
             {tab === "highlights" &&
               (highlights.length === 0 ? (
-                <EmptyState text="Henüz vurgu yok. Metni seçip renk ve önem seçerek vurgulayabilirsin." />
+                <EmptyState text={t("notes.noHighlights")} />
               ) : (
                 highlights.map((h) => (
                   <div
@@ -140,7 +142,7 @@ export function NotesPanel({
                           </span>
                         )}
                         <span className="text-[10px] text-muted-foreground">
-                          {new Date(h.createdAt).toLocaleDateString("tr-TR")}
+                          {new Date(h.createdAt).toLocaleDateString(locale === "tr" ? "tr-TR" : "en-US")}
                         </span>
                       </div>
 
@@ -164,7 +166,7 @@ export function NotesPanel({
                           <button
                             key={level}
                             type="button"
-                            aria-label={`Önem seviyesi ${level}`}
+                            aria-label={t("notes.importanceLevel", { level })}
                             onClick={() =>
                               onUpdateImportance(h.id, h.importance === level ? 0 : level)
                             }
@@ -182,7 +184,7 @@ export function NotesPanel({
                       <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                         <button
                           type="button"
-                          aria-label="Not düzenle"
+                          aria-label={t("notes.editNote")}
                           onClick={() => setEditing(h)}
                           className="flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-background hover:text-foreground"
                         >
@@ -190,7 +192,7 @@ export function NotesPanel({
                         </button>
                         <button
                           type="button"
-                          aria-label="Vurguyu sil"
+                          aria-label={t("notes.deleteHighlight")}
                           onClick={() => onDeleteHighlight(h.id)}
                           className="flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                         >
@@ -204,7 +206,7 @@ export function NotesPanel({
 
             {tab === "bookmarks" &&
               (bookmarks.length === 0 ? (
-                <EmptyState text="Henüz yer imi yok. Üstteki yer imi simgesine dokunarak ekleyebilirsin." />
+                <EmptyState text={t("notes.noBookmarks")} />
               ) : (
                 bookmarks.map((b) => (
                   <div
@@ -218,12 +220,12 @@ export function NotesPanel({
                     >
                       <BookmarkIcon className="size-3.5 shrink-0 text-muted-foreground" />
                       <span className="line-clamp-1 text-[13px] text-foreground">
-                        {b.label || "Konum"}
+                        {b.label || t("notes.locationFallback")}
                       </span>
                     </button>
                     <button
                       type="button"
-                      aria-label="Yer imini sil"
+                      aria-label={t("notes.deleteBookmark")}
                       onClick={() => onDeleteBookmark(b.id)}
                       className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-0 hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
                     >
@@ -262,13 +264,14 @@ function NoteDialog({
   onOpenChange: (value: boolean) => void;
   onSave: (note: string) => void;
 }) {
+  const { t } = useTranslation();
   const [note, setNote] = useState(highlight?.note ?? "");
 
   return (
     <Dialog open={!!highlight} onOpenChange={onOpenChange}>
       <DialogContent showCloseButton>
         <DialogHeader>
-          <DialogTitle>Not</DialogTitle>
+          <DialogTitle>{t("notes.noteDialogTitle")}</DialogTitle>
         </DialogHeader>
         {highlight && (
           <blockquote
@@ -282,14 +285,14 @@ function NoteDialog({
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={4}
-          placeholder="Bu vurgu hakkında not ekle…"
+          placeholder={t("notes.notePlaceholder")}
           className="w-full resize-none rounded-lg border border-border bg-background p-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
         />
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Vazgeç
+            {t("common.cancel")}
           </Button>
-          <Button onClick={() => onSave(note.trim())}>Kaydet</Button>
+          <Button onClick={() => onSave(note.trim())}>{t("common.save")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

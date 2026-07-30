@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import type { Translate } from "./i18n/useTranslation"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -29,12 +30,14 @@ export function generateId(): string {
   return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`
 }
 
-export function formatRelativeDate(timestamp: number): string {
+/** `t` is the i18n `t()` function — passed in rather than imported, since
+ *  this is a plain helper (not a hook) that can't call useTranslation() itself. */
+export function formatRelativeDate(timestamp: number, t: Translate): string {
   const days = Math.floor((Date.now() - timestamp) / (24 * 60 * 60 * 1000))
-  if (days <= 0) return "bugün"
-  if (days === 1) return "dün"
-  if (days < 30) return `${days} gün önce`
+  if (days <= 0) return t("relativeDate.today")
+  if (days === 1) return t("relativeDate.yesterday")
+  if (days < 30) return t("relativeDate.daysAgo", { days })
   const months = Math.floor(days / 30)
-  if (months < 12) return `${months} ay önce`
-  return `${Math.floor(months / 12)} yıl önce`
+  if (months < 12) return t("relativeDate.monthsAgo", { months })
+  return t("relativeDate.yearsAgo", { years: Math.floor(months / 12) })
 }

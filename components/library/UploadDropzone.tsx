@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { importBookFile } from "@/lib/import-book";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { toast } from "@/store/useToastStore";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 interface UploadDropzoneProps {
   compact?: boolean;
@@ -13,6 +14,7 @@ interface UploadDropzoneProps {
 }
 
 export function UploadDropzone({ compact = false, onImported }: UploadDropzoneProps) {
+  const { t } = useTranslation();
   const [isDragging, setIsDragging] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,24 +31,26 @@ export function UploadDropzone({ compact = false, onImported }: UploadDropzonePr
       try {
         for (const file of fileList) {
           try {
-            await importBookFile(file);
+            await importBookFile(file, t);
             imported++;
           } catch (err) {
-            const message = err instanceof Error ? err.message : "Kitap içe aktarılamadı.";
-            toast.error(`${file.name}: ${message}`);
+            const message = err instanceof Error ? err.message : t("upload.importFailed");
+            toast.error(t("upload.importFailedWithFile", { filename: file.name, message }));
             setError(message);
           }
         }
         if (imported > 0) {
           await refresh();
-          toast.success(imported === 1 ? "Kitap eklendi." : `${imported} kitap eklendi.`);
+          toast.success(
+            imported === 1 ? t("upload.addedOne") : t("upload.addedMany", { count: imported })
+          );
           onImported?.();
         }
       } finally {
         setIsImporting(false);
       }
     },
-    [refresh, onImported]
+    [refresh, onImported, t]
   );
 
   return (
@@ -91,11 +95,9 @@ export function UploadDropzone({ compact = false, onImported }: UploadDropzonePr
         )}
         <div className="text-center">
           <p className="font-medium">
-            {isImporting ? "Kitap içe aktarılıyor…" : "EPUB veya PDF yükleyin"}
+            {isImporting ? t("upload.importing") : t("upload.idle")}
           </p>
-          <p className="text-sm text-muted-foreground">
-            Sürükleyip bırakın ya da tıklayarak seçin
-          </p>
+          <p className="text-sm text-muted-foreground">{t("upload.hint")}</p>
         </div>
       </div>
       {error && (

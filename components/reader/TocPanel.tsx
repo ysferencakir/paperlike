@@ -2,6 +2,7 @@
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { TocEntry } from "./types";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 export function TocPanel({
   open,
@@ -14,6 +15,7 @@ export function TocPanel({
   toc: TocEntry[];
   onNavigate: (href: string) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -21,7 +23,7 @@ export function TocPanel({
         className="gap-0 border-none bg-popover/95 px-0 pb-6 pt-3 shadow-2xl backdrop-blur-xl"
       >
         <SheetHeader className="px-5 pb-3">
-          <SheetTitle className="text-[15px]">İçindekiler</SheetTitle>
+          <SheetTitle className="text-[15px]">{t("toc.title")}</SheetTitle>
         </SheetHeader>
         <nav className="flex flex-col overflow-y-auto px-2">
           {toc.map((item, i) => (
@@ -44,6 +46,7 @@ function TocRow({
   onNavigate: (href: string) => void;
   onOpenChange: (value: boolean) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <>
       <button
@@ -55,7 +58,7 @@ function TocRow({
         style={{ paddingLeft: `${12 + depth * 16}px` }}
         className="rounded-lg py-2 pr-3 text-left text-[13px] leading-snug text-foreground hover:bg-muted"
       >
-        {item.label || "Adsız Bölüm"}
+        {item.label || t("toc.unnamedChapter")}
       </button>
       {item.subitems?.map((sub, i) => (
         <TocRow key={`${sub.href}-${i}`} item={sub} depth={depth + 1} onNavigate={onNavigate} onOpenChange={onOpenChange} />

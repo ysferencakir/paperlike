@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import type { PageTurnAnimationLevel } from "@/lib/types";
 import type { ReaderProgressInfo, ReaderSurfaceHandle, SearchResult, SelectionPayload } from "./types";
 import { PageCurlOverlay, PAGE_CURL_TOTAL_MS } from "./PageCurlOverlay";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 import "react-pdf/dist/Page/TextLayer.css";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
@@ -27,15 +28,32 @@ interface PdfReaderSurfaceProps {
   pageTurnAnimation?: PageTurnAnimationLevel;
   /** Resolved reader background color, used to tint the "Gerçekçi" curl overlay. */
   pageBg?: string;
+  /** Continuous-scroll vs page-by-page — mirrors the persisted reader setting. */
+  scrollMode?: boolean;
+  /** Fired when the in-reader toggle button changes scroll mode, so the caller can persist it. */
+  onScrollModeChange?: (value: boolean) => void;
 }
 
 const TAP_MOVE_THRESHOLD = 6;
+const SWIPE_FRACTION = 0.1;
 
 export const PdfReaderSurface = forwardRef<ReaderSurfaceHandle, PdfReaderSurfaceProps>(
   function PdfReaderSurface(
-    { file, initialPage = 1, onProgress, onError, onTap, onSelection, pageTurnAnimation, pageBg },
+    {
+      file,
+      initialPage = 1,
+      onProgress,
+      onError,
+      onTap,
+      onSelection,
+      pageTurnAnimation,
+      pageBg,
+      scrollMode,
+      onScrollModeChange,
+    },
     ref
   ) {
+    const { t } = useTranslation();
     const [numPages, setNumPages] = useState(0);
     const [pageNumber, setPageNumber] = useState(initialPage);
     // Which way the page number just moved, so the "Yumuşak" turn animation
@@ -46,7 +64,16 @@ export const PdfReaderSurface = forwardRef<ReaderSurfaceHandle, PdfReaderSurface
     const [curl, setCurl] = useState<"next" | "prev" | null>(null);
     const curlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [scale, setScale] = useState(1);
-    const [continuous, setContinuous] = useState(false);
+    const pinchRef = useRef<{ active: boolean; lastDistance: number | null }>({
+      active: false,
+      lastDistance: null,
+    });
+    const [continuous, setContinuous] = useState(scrollMode ?? false);
+    // Keeps this in sync if scrollMode is changed from the Settings panel
+    // while the book is already open, not just via the toolbar button below.
+    useEffect(() => {
+      if (scrollMode !== undefined) setContinuous(scrollMode);
+    }, [scrollMode]);
     const scrollRef = useRef<HTMLDivElement>(null);
     const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
     const pointerDownPos = useRef<{ x: number; y: number } | null>(null);
@@ -191,10 +218,38 @@ export const PdfReaderSurface = forwardRef<ReaderSurfaceHandle, PdfReaderSurface
     const zoomIn = () => setScale((s) => Math.min(MAX_SCALE, +(s + SCALE_STEP).toFixed(2)));
     const zoomOut = () => setScale((s) => Math.max(MIN_SCALE, +(s - SCALE_STEP).toFixed(2)));
 
+    const touchDistance = (touches: React.TouchList) => {
+      const [a, b] = [touches[0], touches[1]];
+      return Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+    };
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+      if (e.touches.length === 2) {
+        pinchRef.current = { active: true, lastDistance: touchDistance(e.touches) };
+        // A second finger landing mid-gesture would otherwise also read as
+        // a swipe/tap once lifted — see onPointerUp below.
+        pointerDownPos.current = null;
+      }
+    };
+    const handleTouchMove = (e: React.TouchEvent) => {
+      if (!pinchRef.current.active || e.touches.length !== 2) return;
+      const distance = touchDistance(e.touches);
+      const last = pinchRef.current.lastDistance;
+      if (last) {
+        const factor = distance / last;
+        setScale((s) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, +(s * factor).toFixed(2))));
+      }
+      pinchRef.current.lastDistance = distance;
+    };
+    const handleTouchEnd = (e: React.TouchEvent) => {
+      if (e.touches.length < 2) pinchRef.current = { active: false, lastDistance: null };
+    };
+
     const toggleContinuous = () => {
       setContinuous((c) => {
         const next = !c;
         if (next) requestAnimationFrame(() => scrollToPage(pageNumber));
+        onScrollModeChange?.(next);
         return next;
       });
     };
@@ -202,22 +257,32 @@ export const PdfReaderSurface = forwardRef<ReaderSurfaceHandle, PdfReaderSurface
     return (
       <div
         className="relative flex h-full w-full flex-col"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         onPointerDown={(e) => {
+          if (pinchRef.current.active) return;
           pointerDownPos.current = { x: e.clientX, y: e.clientY };
         }}
         onPointerUp={(e) => {
+          if (pinchRef.current.active) return;
           const start = pointerDownPos.current;
           pointerDownPos.current = null;
           if (!start) return;
-          const moved =
-            Math.abs(e.clientX - start.x) > TAP_MOVE_THRESHOLD ||
-            Math.abs(e.clientY - start.y) > TAP_MOVE_THRESHOLD;
+          const dx = e.clientX - start.x;
+          const dy = e.clientY - start.y;
+          const width = e.currentTarget.getBoundingClientRect().width || 1;
+
+          // Swipe-only page turning — no more left/right tap zones. A plain
+          // tap (below) always just toggles the chrome instead.
+          if (Math.abs(dx) > width * SWIPE_FRACTION && Math.abs(dx) > Math.abs(dy)) {
+            onTap?.(dx < 0 ? "next" : "prev");
+            return;
+          }
+
+          const moved = Math.abs(dx) > TAP_MOVE_THRESHOLD || Math.abs(dy) > TAP_MOVE_THRESHOLD;
           if (!moved) {
-            const width = e.currentTarget.getBoundingClientRect().width || 1;
-            const x = e.clientX - e.currentTarget.getBoundingClientRect().left;
-            if (x < width * 0.28) onTap?.("prev");
-            else if (x > width * 0.72) onTap?.("next");
-            else onTap?.("middle");
+            onTap?.("middle");
             return;
           }
           // Selection finalizes just after pointerup — read it on the next tick.
@@ -332,18 +397,18 @@ export const PdfReaderSurface = forwardRef<ReaderSurfaceHandle, PdfReaderSurface
             onPointerDown={(e) => e.stopPropagation()}
             onPointerUp={(e) => e.stopPropagation()}
           >
-            <ControlButton label="Uzaklaştır" onClick={zoomOut} disabled={scale <= MIN_SCALE}>
+            <ControlButton label={t("pdf.zoomOut")} onClick={zoomOut} disabled={scale <= MIN_SCALE}>
               <Minus className="size-3.5" />
             </ControlButton>
             <span className="w-10 text-center text-[11px] tabular-nums text-muted-foreground">
               {Math.round(scale * 100)}%
             </span>
-            <ControlButton label="Yakınlaştır" onClick={zoomIn} disabled={scale >= MAX_SCALE}>
+            <ControlButton label={t("pdf.zoomIn")} onClick={zoomIn} disabled={scale >= MAX_SCALE}>
               <Plus className="size-3.5" />
             </ControlButton>
             <span className="mx-0.5 h-4 w-px bg-border" />
             <ControlButton
-              label={continuous ? "Sayfa modu" : "Kaydırma modu"}
+              label={continuous ? t("pdf.pageMode") : t("pdf.scrollMode")}
               onClick={toggleContinuous}
               active={continuous}
             >

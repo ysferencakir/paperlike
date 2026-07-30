@@ -6,6 +6,7 @@ import { Check, Star, X } from "lucide-react";
 import { HIGHLIGHT_COLORS, type ImportanceLevel } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import type { SelectionPayload } from "./types";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 const IMPORTANCE_LEVELS: ImportanceLevel[] = [1, 2, 3];
 
@@ -18,6 +19,7 @@ export function SelectionBar({
   onConfirm: (color: string, importance: ImportanceLevel) => void;
   onDismiss: () => void;
 }) {
+  const { t } = useTranslation();
   const [color, setColor] = useState<string>(HIGHLIGHT_COLORS[0]);
   const [importance, setImportance] = useState<ImportanceLevel>(0);
 
@@ -36,7 +38,7 @@ export function SelectionBar({
           </p>
           <button
             type="button"
-            aria-label="Vazgeç"
+            aria-label={t("selection.cancel")}
             onClick={onDismiss}
             className="flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted"
           >
@@ -50,7 +52,7 @@ export function SelectionBar({
               <button
                 key={c}
                 type="button"
-                aria-label={`${c} rengi seç`}
+                aria-label={t("selection.chooseColor", { color: c })}
                 onClick={() => setColor(c)}
                 className={cn(
                   "flex size-6 items-center justify-center rounded-full ring-1 ring-black/10 transition-transform hover:scale-110",
@@ -68,7 +70,7 @@ export function SelectionBar({
               <button
                 key={level}
                 type="button"
-                aria-label={`Önem seviyesi ${level}`}
+                aria-label={t("selection.importanceLevel", { level })}
                 onClick={() => setImportance((prev) => (prev === level ? 0 : level))}
                 className="flex size-6 items-center justify-center text-muted-foreground transition-colors hover:text-amber-500"
               >
@@ -86,7 +88,7 @@ export function SelectionBar({
           className="flex h-9 items-center justify-center gap-1.5 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-90"
           style={{ backgroundColor: color, color: "#1a1a1a" }}
         >
-          Vurgula
+          {t("selection.highlight")}
         </button>
       </div>
     </motion.div>

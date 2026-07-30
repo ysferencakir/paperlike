@@ -9,13 +9,10 @@ import { toast } from "@/store/useToastStore";
 import { cn } from "@/lib/utils";
 import { BookCover } from "./BookCover";
 import { BookActionsMenu } from "./BookActionsMenu";
-
-const FORMAT_LABEL: Record<Book["format"], string> = {
-  epub: "EPUB",
-  pdf: "PDF",
-};
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 export function BookCard({ book }: { book: Book }) {
+  const { t } = useTranslation();
   const removeBook = useLibraryStore((s) => s.removeBook);
   const [confirming, setConfirming] = useState(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -33,7 +30,7 @@ export function BookCard({ book }: { book: Book }) {
       return;
     }
     if (resetTimer.current) clearTimeout(resetTimer.current);
-    void removeBook(book.id).then(() => toast.message("Kitap silindi."));
+    void removeBook(book.id).then(() => toast.message(t("book.deleted")));
   };
 
   return (
@@ -42,7 +39,7 @@ export function BookCard({ book }: { book: Book }) {
         <BookCover book={book} />
 
         <span className="absolute left-2 top-2 rounded-md bg-black/45 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-white opacity-100 backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-0">
-          {FORMAT_LABEL[book.format]}
+          {t(book.format === "epub" ? "format.epub" : "format.pdf")}
         </span>
 
         <BookActionsMenu book={book} />
@@ -54,7 +51,7 @@ export function BookCard({ book }: { book: Book }) {
             "absolute right-2 top-2 flex size-7 items-center justify-center rounded-full text-white opacity-0 backdrop-blur-sm transition-all duration-200 group-hover:opacity-100 focus-visible:opacity-100",
             confirming ? "bg-destructive opacity-100" : "bg-black/40 hover:bg-black/60"
           )}
-          aria-label={confirming ? "Silmeyi onayla" : "Kitabı sil"}
+          aria-label={confirming ? t("book.confirmDelete") : t("book.delete")}
         >
           <Trash2 className="size-3.5" />
         </button>

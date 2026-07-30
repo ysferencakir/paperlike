@@ -12,9 +12,10 @@
 #   public *;
 #}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Keeps line numbers in stack traces — otherwise a Crashlytics report from a
+# minified release build just says "at MainActivity" with no line, useless
+# for tracking down what actually broke.
+-keepattributes SourceFile,LineNumberTable
 
 # If you keep the line number information, uncomment this to
 # hide the original source file name.

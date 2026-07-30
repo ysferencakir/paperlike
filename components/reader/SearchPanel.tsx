@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Loader2, Search } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { SearchResult } from "./types";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 
 export function SearchPanel({
   open,
@@ -16,6 +17,7 @@ export function SearchPanel({
   onSearch: (query: string) => Promise<SearchResult[]>;
   onNavigate: (location: string) => void;
 }) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,7 +57,7 @@ export function SearchPanel({
         className="gap-0 border-none bg-popover/95 px-0 pb-6 pt-3 shadow-2xl backdrop-blur-xl"
       >
         <SheetHeader className="px-5 pb-3">
-          <SheetTitle className="text-[15px]">Kitapta Ara</SheetTitle>
+          <SheetTitle className="text-[15px]">{t("search.title")}</SheetTitle>
         </SheetHeader>
 
         <div className="px-5 pb-3">
@@ -65,7 +67,7 @@ export function SearchPanel({
               autoFocus
               value={query}
               onChange={(e) => void runSearch(e.target.value)}
-              placeholder="Ara…"
+              placeholder={t("search.placeholder")}
               className="h-9 w-full bg-transparent text-sm outline-none"
             />
             {loading && <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" />}
@@ -75,7 +77,7 @@ export function SearchPanel({
         <div className="flex flex-col gap-1 overflow-y-auto px-2">
           {searched && !loading && results.length === 0 && (
             <p className="px-3 py-6 text-center text-[13px] text-muted-foreground">
-              Sonuç bulunamadı.
+              {t("search.noResults")}
             </p>
           )}
           {results.map((r, i) => (

@@ -3,6 +3,7 @@ import type { Book, BookFormat } from "./types";
 import { parseEpubFile } from "./epub-loader";
 import { parsePdfFile } from "./pdf-loader";
 import { generateId } from "./utils";
+import type { Translate } from "./i18n/useTranslation";
 
 function detectFormat(file: File): BookFormat | null {
   const name = file.name.toLowerCase();
@@ -19,22 +20,22 @@ function stripExtension(fileName: string): string {
   return fileName.replace(/\.[^/.]+$/, "");
 }
 
-export async function importBookFile(file: File): Promise<Book> {
+export async function importBookFile(file: File, t: Translate): Promise<Book> {
   const format = detectFormat(file);
   if (!format) {
-    throw new Error(`Desteklenmeyen dosya türü: ${file.name}`);
+    throw new Error(t("importBook.unsupportedType", { filename: file.name }));
   }
 
   const fallbackTitle = stripExtension(file.name);
   const parsed =
     format === "epub"
-      ? await parseEpubFile(file)
-      : await parsePdfFile(file, fallbackTitle);
+      ? await parseEpubFile(file, t)
+      : await parsePdfFile(file, fallbackTitle, t);
 
   const book: Book = {
     id: generateId(),
     title: parsed.title || fallbackTitle,
-    author: parsed.author || "Bilinmeyen Yazar",
+    author: parsed.author || t("importBook.unknownAuthor"),
     format,
     addedAt: Date.now(),
     fileSize: file.size,

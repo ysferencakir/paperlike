@@ -7,6 +7,7 @@ import { useLibraryStore } from "@/store/useLibraryStore";
 import { toast } from "@/store/useToastStore";
 import { formatBytes } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/lib/i18n/useTranslation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,11 +23,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-const FORMAT_LABEL: Record<Book["format"], string> = {
-  epub: "EPUB",
-  pdf: "PDF",
-};
-
 const TRIGGER_CLASSES = {
   overlay:
     "absolute left-2 top-2 flex size-7 items-center justify-center rounded-full bg-black/40 text-white opacity-0 backdrop-blur-sm transition-all duration-200 hover:bg-black/60 group-hover:opacity-100 focus-visible:opacity-100 data-open:opacity-100",
@@ -41,8 +37,10 @@ export function BookActionsMenu({
   book: Book;
   variant?: "overlay" | "inline";
 }) {
+  const { t, locale } = useTranslation();
   const [renameOpen, setRenameOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
+  const formatLabel = t(book.format === "epub" ? "format.epub" : "format.pdf");
 
   return (
     <>
@@ -55,7 +53,7 @@ export function BookActionsMenu({
                 e.preventDefault();
                 e.stopPropagation();
               }}
-              aria-label="Kitap seçenekleri"
+              aria-label={t("bookActions.ariaLabel")}
               className={TRIGGER_CLASSES[variant]}
             />
           }
@@ -65,11 +63,11 @@ export function BookActionsMenu({
         <DropdownMenuContent align="start" sideOffset={6}>
           <DropdownMenuItem onClick={() => setRenameOpen(true)}>
             <PenLine />
-            Yeniden Adlandır
+            {t("bookActions.rename")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setInfoOpen(true)}>
             <Info />
-            Bilgi
+            {t("bookActions.info")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -79,15 +77,21 @@ export function BookActionsMenu({
       <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
         <DialogContent showCloseButton>
           <DialogHeader>
-            <DialogTitle>Kitap Bilgisi</DialogTitle>
+            <DialogTitle>{t("bookActions.infoTitle")}</DialogTitle>
           </DialogHeader>
           <dl className="flex flex-col gap-2.5 text-sm">
-            <Row label="Başlık" value={book.title} />
-            <Row label="Yazar" value={book.author} />
-            <Row label="Kategori" value={book.category ?? "Kategorisiz"} />
-            <Row label="Format" value={FORMAT_LABEL[book.format]} />
-            <Row label="Boyut" value={formatBytes(book.fileSize)} />
-            <Row label="Eklenme Tarihi" value={new Date(book.addedAt).toLocaleDateString("tr-TR")} />
+            <Row label={t("bookActions.titleLabel")} value={book.title} />
+            <Row label={t("bookActions.authorLabel")} value={book.author} />
+            <Row
+              label={t("bookActions.categoryLabel")}
+              value={book.category ?? t("bookActions.uncategorized")}
+            />
+            <Row label={t("bookActions.formatLabel")} value={formatLabel} />
+            <Row label={t("bookActions.sizeLabel")} value={formatBytes(book.fileSize)} />
+            <Row
+              label={t("bookActions.addedAtLabel")}
+              value={new Date(book.addedAt).toLocaleDateString(locale === "tr" ? "tr-TR" : "en-US")}
+            />
           </dl>
         </DialogContent>
       </Dialog>
@@ -113,6 +117,7 @@ function RenameDialog({
   open: boolean;
   onOpenChange: (value: boolean) => void;
 }) {
+  const { t, locale } = useTranslation();
   const books = useLibraryStore((s) => s.books);
   const renameBook = useLibraryStore((s) => s.renameBook);
   const [title, setTitle] = useState(book.title);
@@ -122,7 +127,7 @@ function RenameDialog({
 
   const existingCategories = Array.from(
     new Set(books.map((b) => b.category).filter((c): c is string => !!c))
-  ).sort((a, b) => a.localeCompare(b, "tr"));
+  ).sort((a, b) => a.localeCompare(b, locale === "tr" ? "tr" : "en"));
 
   const handleOpenChange = (value: boolean) => {
     if (value) {
@@ -140,10 +145,10 @@ function RenameDialog({
     try {
       await renameBook(book.id, {
         title: trimmedTitle,
-        author: author.trim() || "Bilinmeyen Yazar",
+        author: author.trim() || t("bookActions.unknownAuthor"),
         category: category.trim() || undefined,
       });
-      toast.success("Kitap güncellendi.");
+      toast.success(t("bookActions.updated"));
       onOpenChange(false);
     } finally {
       setSaving(false);
@@ -154,12 +159,14 @@ function RenameDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent showCloseButton>
         <DialogHeader>
-          <DialogTitle>Kitabı Düzenle</DialogTitle>
-          <DialogDescription>Başlığı, yazarı ve rafta göründüğü kategoriyi düzenle.</DialogDescription>
+          <DialogTitle>{t("bookActions.editTitle")}</DialogTitle>
+          <DialogDescription>{t("bookActions.editDescription")}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1.5 text-sm">
-            <span className="text-xs font-medium text-muted-foreground">Başlık</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              {t("bookActions.titleLabel")}
+            </span>
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -167,7 +174,9 @@ function RenameDialog({
             />
           </label>
           <label className="flex flex-col gap-1.5 text-sm">
-            <span className="text-xs font-medium text-muted-foreground">Yazar</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              {t("bookActions.authorLabel")}
+            </span>
             <input
               value={author}
               onChange={(e) => setAuthor(e.target.value)}
@@ -175,11 +184,13 @@ function RenameDialog({
             />
           </label>
           <label className="flex flex-col gap-1.5 text-sm">
-            <span className="text-xs font-medium text-muted-foreground">Kategori</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              {t("bookActions.categoryLabel")}
+            </span>
             <input
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              placeholder="ör. Roman, Bilim Kurgu"
+              placeholder={t("bookActions.categoryPlaceholder")}
               className="h-9 rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             />
             {/* Plain buttons, not a native <datalist> — the browser's own
@@ -203,10 +214,10 @@ function RenameDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Vazgeç
+            {t("common.cancel")}
           </Button>
           <Button onClick={() => void handleSave()} disabled={saving || !title.trim()}>
-            Kaydet
+            {t("common.save")}
           </Button>
         </DialogFooter>
       </DialogContent>

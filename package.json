@@ -12,6 +12,8 @@
     "test:watch": "vitest",
     "test:e2e": "npm run build && playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "benchmark:web": "playwright test --config=playwright.benchmark.config.ts",
+    "benchmark:web:build": "npm run build && npm run benchmark:web",
     "check": "npm run lint && npm run type-check && npm test",
     "cap:sync": "next build && npx cap sync android",
     "android:open": "npx cap open android",

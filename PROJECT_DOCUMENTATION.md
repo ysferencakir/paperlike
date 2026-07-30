@@ -2381,8 +2381,18 @@ Plan:
   dinleyip `pushSettingsSnapshot()` çağırıyor (slider sürüklerken her tik'te
   yazma olmasın diye). Hepsi `currentUid()` üzerinden signed-out durumda
   sessizce no-op oluyor — misafir modu ve offline kullanım hiç etkilenmiyor.
-  **Henüz telefonda uçtan uca test edilmedi** (yalnızca `tsc`/`build`/`cap
-  sync` ile doğrulandı).
+  **Gerçek cihazda uçtan uca doğrulandı** (statik/temiz bir debug build ile —
+  kitap ekleme, ilerleme, highlight ve ayar değişikliklerinin hepsi Firestore
+  Console'da göründü). Doğrulama sırasında canlı-yeniden-yükleme (live-reload)
+  dev sunucusuna özgü iki ayrı gürültü kaynağı da not edildi: (1) sık
+  yeniden yüklemeler `useAuthStore`'un henüz `getCurrentUser()`'ı
+  bitirmeden bir mutasyonun tetiklenmesine (push'un sessizce no-op olmasına)
+  yol açabiliyor; (2) Fast Refresh, `lib/firebase.ts`'in modül state'ini
+  sıfırlarken alttaki `FirebaseApp` hayatta kalabiliyor, bu da
+  `initializeAuth()`'un ikinci kez çağrılıp hata fırlatmasına yol açabiliyordu
+  — `getFirebaseAuth()`'a bu durumda `getAuth()`'a düşen bir fallback eklendi.
+  İkisi de yalnızca dev/live-reload ortamına özgü; gerçek/statik build'de
+  gözlemlenmedi.
 - [ ] Firestore offline persistence ile yerel yazma kuyruğunun birlikte çalışma
   modelini doğrulama.
 - [ ] Drive uygulama klasörü oluşturma ve dosya yükleme.

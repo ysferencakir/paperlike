@@ -8,6 +8,7 @@ import {
 } from "firebase/auth";
 import { pushLibrarySnapshot } from "@/lib/cloud-sync";
 import { getFirebaseAuth, setFirebaseIsNativePlatform } from "@/lib/firebase";
+import { DRIVE_SIGNIN_SCOPES, cacheDriveAccessToken, clearDriveAccessToken } from "@/lib/drive-sync";
 
 // @capacitor-firebase/authentication signs the user in on the *native*
 // Android/iOS side only — nothing else in the Firebase JS SDK (Firestore,
@@ -50,7 +51,11 @@ export const useAuthStore = create<AuthState>()((set) => ({
   initialized: false,
 
   signInWithGoogle: async () => {
-    const result = await FirebaseAuthentication.signInWithGoogle();
+    // Requesting the Drive scope right at sign-in (rather than only when a
+    // Drive call first needs it) means the first book upload doesn't need
+    // its own extra re-auth round trip.
+    const result = await FirebaseAuthentication.signInWithGoogle({ scopes: DRIVE_SIGNIN_SCOPES });
+    cacheDriveAccessToken(result.credential?.accessToken);
     await syncWebAuthAfterGoogleSignIn(result.credential?.idToken);
     // Pushed here (after the JS-side Auth is actually bridged) rather than
     // from the authStateChange listener below — that listener can fire from
@@ -78,6 +83,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
   signOut: async () => {
     await FirebaseAuthentication.signOut();
+    clearDriveAccessToken();
     const auth = getFirebaseAuth();
     if (auth) await firebaseSignOut(auth);
   },

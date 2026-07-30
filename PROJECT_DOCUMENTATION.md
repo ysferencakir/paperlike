@@ -20,13 +20,13 @@
 | Android sürümü | `versionCode 1`, `versionName 1.0` |
 | Lisans | MIT |
 | Son kapsamlı güncelleme | 30 Temmuz 2026 |
-| Belge sürümü | `1.10` |
+| Belge sürümü | `1.11` |
 | Belge durumu | Aktif ana kaynak |
 | Belge sahibi | Proje sahibi/aktif maintainer |
 | Son doğrulanan branch | `main` |
-| Son doğrulanan baz commit | `05cda45460bc67e06dd5f8abb9e724ae3c1680bc` |
-| Doğrulama kapsamı | Baz commit + 30 Temmuz 2026 tarihli commitlenmemiş çalışma ağacı |
-| Kod grafiği | Graphify — güncel sayılar `graphify-out/GRAPH_REPORT.md` içinde |
+| Son doğrulanan baz commit | `78d2e68` |
+| Doğrulama kapsamı | Baz commit + benchmark tamamlama değişiklikleri; eşzamanlı Firebase/Drive çalışma ağacı hariç |
+| Kod grafiği | Graphify — 26.223 node, 63.160 edge, 639 community; ayrıntı `graphify-out/GRAPH_REPORT.md` |
 
 > **Sürüm uyarısı:** `package.json` ile Android sürüm değerleri birbiriyle uyumlu
 > değildir. İlk gerçek dağıtımdan önce tek bir sürümleme politikası belirlenmelidir.
@@ -1394,7 +1394,8 @@ Bu karar, kullanıcı verisine erişimi tamamen engelleyebilecek bir güvenlik
 - React error boundary kapsamı açıkça standartlaştırılmamış.
 - Web dağıtımı için merkezi hata izleme yok.
 - Yapısal log seviyesi ve olay isimlendirme standardı yok.
-- Performans ölçümleri ve gerçek kullanıcı metrikleri yok.
+- Sentetik web benchmarkı vardır; gerçek kullanıcı metrikleri ve Android cihaz
+  telemetrisi henüz yoktur.
 - Kullanıcı gizliliğini koruyan tanılama paketi/destek dışa aktarma akışı yok.
 
 Hata raporlarına kitap metni, not içeriği veya dosya yolu gibi hassas veriler
@@ -1474,13 +1475,24 @@ kapsar:
 18. Kitap silme tekil cache invalidation, restore ise toplu cache clear uygular.
 19. 200 kitaplık fixture cache'in 24 kayıtlık test bütçesini aşmadığını ve
     tahliye edilen bütün object URL'lerin revoke edildiğini doğrular.
+20. `PERF-W-001`; seçilen küçük/orta/büyük profilde gerçek UI üzerinden PDF ve
+    EPUB import, PDF ilk sayfa, sayfa geçişi, arama, backup export/restore,
+    kapak cache hit ve thumbnail sınırlarını ölçer.
+21. Benchmark her iterasyonu temiz bir browser context ve IndexedDB ile çalıştırır;
+    yerelde varsayılan üç örneğin p50/p95 değerlerini, CI'da tek örnekli smoke
+    sonucunu `benchmark-results/latest.json` ve `latest.md` olarak üretir.
+22. JSON `schemaVersion: 1`, ortak `platform`, fixture, environment ve metric
+    alanlarıyla Android ölçümlerinin de aynı rapor sözleşmesine eklenmesine
+    uygundur. Yapısal bütçeler her ortamda kapıdır; gürültülü paylaşımlı CI'da
+    süre aşımları uyarıdır. Kalibre runner'da `BENCHMARK_ENFORCE_TIMINGS=1`
+    süre bütçelerini de kapı yapar.
 
 ### 15.4 Kalan yaklaşım
 
-1. Temsilî küçük, orta ve büyük EPUB/PDF fixture'ları belirlenmelidir.
-2. Import süresi, reader first paint, sayfa geçişi, arama ve backup için ölçüm
-   bütçeleri tanımlanmalıdır.
-3. Gerçek Android cihazlarda p50/p95, tepe bellek ve uzun frame ölçülmelidir.
+1. Sentetik süre bütçeleri farklı CI koşularından baseline biriktirildikten sonra
+   kalibre edilmeli ve süre kapısı için sabit runner seçilmelidir.
+2. Gerçek Android cihazlarda p50/p95, tepe bellek ve uzun frame ölçülmelidir.
+3. EPUB ilk sayfa ve tam metin arama metrikleri web benchmarkına eklenmelidir.
 4. Kalıcı/tembel arama indeksleri değerlendirilmelidir.
 5. Import gibi kalan uzun işlemler ilerleme ve iptal desteği vermelidir.
 6. JSZip'in nihai arşivi bellekte üretme sınırı için streaming veya worker
@@ -1512,6 +1524,8 @@ kapsar:
 | `npm run test:watch` | Vitest'i geliştirme sırasında izleme modunda çalıştırma |
 | `npm run test:e2e` | Production build + Playwright Chromium E2E |
 | `npm run test:e2e:ui` | Playwright görsel test arayüzü |
+| `npm run benchmark:web` | Mevcut `out/` üzerinde orta profil, yerelde 3 iterasyon benchmark |
+| `npm run benchmark:web:build` | Production build + web benchmark |
 | `npm run check` | Lint + type-check + bütün otomatik testler |
 | `npm run cap:sync` | Web build + Android Capacitor sync |
 | `npm run android:open` | Android Studio'da projeyi açma |
@@ -1566,7 +1580,10 @@ bulmaya çalışır. Geliştirme cihazı ve bilgisayar aynı ağda olmalıdır.
 - `npm run check` ile lint, type-check ve Vitest testlerini kapı yapar.
 - Ardından statik production build üretir.
 - Chromium'u kurar, Playwright web/PWA E2E testlerini çalıştırır.
+- Orta profil tek iterasyonlu performans smoke benchmarkını çalıştırır; yapısal
+  bütçeleri kapı yapar.
 - Playwright HTML raporunu başarı veya hata halinde artifact olarak yükler.
+- JSON ve Markdown benchmark raporunu `benchmark-report` artifact'i olarak yükler.
 - Aynı ref için eski çalışmayı iptal eden concurrency ayarı ve salt-okunur
   `contents` izni kullanır.
 
@@ -1726,7 +1743,7 @@ senaryolarını temsil etmez.
 
 | Test/kapı | Kanıt | Son sonuç | Ortam | Baz | Tarih |
 |---|---|---|---|---|---|
-| Vitest toplamı | 15 test dosyası | **Geçti — 43/43** | Windows, Node `24.15.0`, jsdom/node/fake-indexeddb | `05cda45` + çalışma ağacı | 2026-07-30 |
+| Vitest toplamı | 16 test dosyası | **Geçti — 45/45** | Windows, Node `24.15.0`, jsdom/node/fake-indexeddb | `78d2e68` + çalışma ağacı | 2026-07-30 |
 | `IT-READER-LOAD-001` | `components/reader/useReaderBootstrap.test.ts` | **Geçti — 6/6** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-STORAGE-001` | `lib/storage.test.ts` | **Geçti — 1/1** | Windows, fake-indexeddb | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-BACKUP-*` | `lib/backup.test.ts` | **Geçti — 7/7** | Windows, fake-indexeddb + 3 MiB binary fixture | `05cda45` + çalışma ağacı | 2026-07-30 |
@@ -1745,6 +1762,7 @@ senaryolarını temsil etmez.
 | `E2E-W-READER-001` | `e2e/library-reader-progress.spec.ts` | **Geçti — 1/1** | Chromium, production statik export | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `E2E-W-PWA-001` | `e2e/pwa-offline.spec.ts` | **Geçti — 1/1** | Chromium offline, production statik export | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `E2E-W-PERF-001` | `e2e/large-pdf-performance.spec.ts` | **Geçti — 1/1; 120 slot, ≤10 aktif sayfa, uzak sayfa araması** | Chromium, production statik export | `05cda45` + çalışma ağacı | 2026-07-30 |
+| `PERF-W-001` | `benchmarks/web-performance.spec.ts` + `benchmark-results/latest.*` | **Geçti — orta profil, 3/3; UI import/reader/search/backup/cache bütçeleri** | Windows x64, Chromium 151, production statik export | `78d2e68` + çalışma ağacı | 2026-07-30 |
 | Type-check | `npm run type-check` | **Geçti** | Windows, TypeScript 5 | `05cda45` + çalışma ağacı | 2026-07-30 |
 | ESLint | `npm run lint` | **Geçti — 0 hata, 2 Firebase uyarısı** | Windows, ESLint 9 | `05cda45` + çalışma ağacı | 2026-07-30 |
 | Production build | `npm run build` | **Geçti — 4 statik route** | Windows, Next.js 16.2.11 | `05cda45` + çalışma ağacı | 2026-07-30 |
@@ -2220,8 +2238,9 @@ Amaç: Mevcut özellikleri güvenilir ve belgelenmiş bir tabana oturtmak.
 
 Amaç: Düşük ve orta seviye cihazlarda büyük EPUB/PDF dosyalarını güvenilir açmak.
 
-- [ ] Temsilî performans fixture seti.
-- [ ] Import ve first-render ölçümleri.
+- [x] Küçük/orta/büyük sentetik EPUB ve PDF performans fixture profilleri.
+- [x] PDF/EPUB import, PDF first-render, sayfa geçişi, arama, backup/restore ve
+  kapak cache/thumbnail ölçümleri.
 - [x] PDF sayfa canvas/text layer virtualization/lazy rendering.
 - [x] PDF açık belge nesnesini arama ve metin erişiminde yeniden kullanma.
 - [x] EPUB konum üretimini erteleme ve dosya boyutuna uyarlama.
@@ -2235,8 +2254,8 @@ Amaç: Düşük ve orta seviye cihazlarda büyük EPUB/PDF dosyalarını güveni
 - [ ] **RM-B-01:** Küçük/orta/büyük fixture sınıflarında cold/warm start, import,
   EPUB/PDF first page, arama, backup, p50/p95, tepe bellek ve frame sürelerini
   ölçen gerçek baseline raporu yayınlamak.
-- [ ] Benchmark sonuçlarını test panosuna commit, cihaz, OS ve release build
-  bilgisiyle bağlamak.
+- [x] Web benchmark raporunu commit, OS, mimari, browser ve production build
+  bilgisiyle CI artifact'ine bağlamak.
 - [ ] Ölçüm sonucuna göre NFR hedeflerini kabul etmek veya gerekçeli biçimde
   revize etmek.
 
@@ -2963,6 +2982,7 @@ güvenli biçimde ulaşmayı sağlamaktır.
 | `1.8` | 2026-07-30 | `05cda45` + çalışma ağacı | Büyük kitap araması 250 ms debounce, yeni sorgu/panel kapanışında iptal, bölüm/sayfa ilerlemesi, dört birimde bir event-loop yield ve 50 sonuç sınırıyla yenilendi. EPUB unload ve PDF belge yeniden kullanımı regresyonları ile 120 sayfalık gerçek Chromium araması doğrulandı; pano 29 Vitest + 3 Playwright oldu. |
 | `1.9` | 2026-07-30 | `05cda45` + çalışma ağacı | Backup/restore performans ve güvenlik dilimi tamamlandı: tarayıcı Blob girdisi, EPUB/PDF `STORE`, streamFiles, aşama ilerlemesi, UI iptali, CRC/manifest/metadata/zorunlu dosya ön doğrulaması ve kısmi arşiv koruması eklendi. 3 MiB çok-kitaplı round-trip dahil pano 35 Vitest + 3 Playwright oldu; JSZip nihai çıktı belleği ve gerçek cihaz baseline'ı açık bırakıldı. |
 | `1.10` | 2026-07-30 | `05cda45` + çalışma ağacı | Kapak performans dilimi tamamlandı: 300 px viewport lazy loading, 384×576 thumbnail, 96 kayıt/32 MiB bounded LRU, eşzamanlı IndexedDB/URL dedupe, lease tabanlı revoke, raf rengi reuse ve silme/restore invalidation eklendi. 200 kitaplık fixture ve viewport testiyle pano 43 Vitest + 3 Playwright oldu. |
+| `1.11` | 2026-07-30 | `78d2e68` + çalışma ağacı | Küçük/orta/büyük deterministik EPUB/PDF profilleri, temiz context üzerinde UI tabanlı import/ilk sayfa/sayfa geçişi/arama/backup/restore/kapak ölçümleri, ortak web-Android JSON şeması, Markdown özet, yapısal ve süre bütçeleri ile CI artifact'i eklendi. Faz B fixture, web ölçüm ve CI kanıt işleri tamamlandı; Android cihaz belleği/frame baseline'ı açık bırakıldı. Graphify 26.223 node/63.160 edge/639 community ile yenilendi. |
 
 ### Changelog kuralı
 

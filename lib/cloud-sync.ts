@@ -7,11 +7,12 @@
 // Schema: users/{uid}/books/{bookId} (book metadata + its progress merged
 // in), users/{uid}/books/{bookId}/highlights/{id}, .../bookmarks/{id}, and
 // users/{uid}/settings/reader.
-import { deleteDoc, doc, setDoc, writeBatch } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, setDoc, writeBatch } from "firebase/firestore";
 import { getFirebaseDb } from "./firebase";
 import { getAllBooks, getAllMetadataForBackup } from "./storage";
 import { useSettingsStore } from "@/store/useSettingsStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import { deleteBookFileFromDrive, uploadBookFileToDrive } from "./drive-sync";
 import type { Book, Bookmark, Highlight, ReaderSettings, ReadingProgress } from "./types";
 
 const MAX_BATCH_OPS = 450; // Firestore's actual limit is 500 — leave headroom.
@@ -77,7 +78,23 @@ export async function pushProgress(progress: ReadingProgress): Promise<void> {
   );
 }
 
-/** Removes a book (and, best-effort, its known highlight/bookmark docs) from Firestore. */
+/**
+ * Uploads a newly-added book's file to the user's hidden Drive app folder
+ * and records the returned file id on its Firestore doc. Google-only (no-op
+ * for email/password accounts, which have no Drive access token) — see
+ * lib/drive-sync.ts.
+ */
+export async function syncBookFileToDrive(book: Book, fileBlob: Blob): Promise<void> {
+  const uid = currentUid();
+  const db = getFirebaseDb();
+  if (!uid || !db) return;
+  const filename = `${book.id}.${book.format}`;
+  const fileId = await uploadBookFileToDrive(filename, fileBlob);
+  if (!fileId) return;
+  await setDoc(bookDoc(uid, book.id, db), { driveFileId: fileId, updatedAt: Date.now() }, { merge: true });
+}
+
+/** Removes a book (and, best-effort, its known highlight/bookmark docs, and its Drive file) from Firestore. */
 export async function deleteBookRemote(
   bookId: string,
   highlightIds: string[] = [],
@@ -86,10 +103,14 @@ export async function deleteBookRemote(
   const uid = currentUid();
   const db = getFirebaseDb();
   if (!uid || !db) return;
+  const ref = bookDoc(uid, bookId, db);
+  const snapshot = await getDoc(ref);
+  const driveFileId = snapshot.data()?.driveFileId as string | undefined;
   await Promise.all([
-    deleteDoc(bookDoc(uid, bookId, db)),
+    deleteDoc(ref),
     ...highlightIds.map((id) => deleteDoc(doc(db, "users", uid, "books", bookId, "highlights", id))),
     ...bookmarkIds.map((id) => deleteDoc(doc(db, "users", uid, "books", bookId, "bookmarks", id))),
+    driveFileId ? deleteBookFileFromDrive(driveFileId) : Promise.resolve(),
   ]);
 }
 

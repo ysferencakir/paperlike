@@ -24,6 +24,13 @@ const TIMING_BUDGETS: BenchmarkMetricDefinition[] = [
     kind: "timing",
     budget: 10_000,
   },
+  {
+    id: "pdf_page_turn_ms",
+    label: "PDF page turn persistence",
+    unit: "ms",
+    kind: "timing",
+    budget: 5_000,
+  },
   { id: "pdf_search_ms", label: "PDF search", unit: "ms", kind: "timing", budget: 15_000 },
   {
     id: "backup_export_ms",
@@ -56,12 +63,25 @@ const STRUCTURAL_BUDGETS: BenchmarkMetricDefinition[] = [
     kind: "structural",
     budget: 0,
   },
+  {
+    id: "cover_thumbnail_width",
+    label: "Cached cover natural width",
+    unit: "count",
+    kind: "structural",
+    budget: 384,
+  },
+  {
+    id: "cover_thumbnail_height",
+    label: "Cached cover natural height",
+    unit: "count",
+    kind: "structural",
+    budget: 576,
+  },
 ];
 
 type SampleMap = Record<string, number[]>;
 
 test("PERF-W-001 measures the critical large-book workflow", async ({ browser }) => {
-  test.slow();
   const profileName = resolveBenchmarkProfile(process.env.BENCHMARK_PROFILE);
   const profile = BENCHMARK_PROFILES[profileName];
   const iterations = parseIterations(process.env.BENCHMARK_ITERATIONS);
@@ -73,12 +93,16 @@ test("PERF-W-001 measures the critical large-book workflow", async ({ browser })
   );
 
   for (let iteration = 0; iteration < iterations; iteration++) {
+    console.log(`[benchmark] iteration ${iteration + 1}/${iterations}: prepare`);
     const context = await browser.newContext({ acceptDownloads: true });
     try {
       const page = await preparePage(context);
+      console.log(`[benchmark] iteration ${iteration + 1}: import PDF`);
       samples.pdf_import_ms.push(await importFixture(page, pdf));
+      console.log(`[benchmark] iteration ${iteration + 1}: import EPUB`);
       samples.epub_import_ms.push(await importFixture(page, epub));
 
+      console.log(`[benchmark] iteration ${iteration + 1}: first PDF page`);
       const firstPageStart = performance.now();
       await page.getByRole("link").filter({ hasText: pdf.title }).click();
       await expect(page.getByRole("button", { name: /Uzaklaştır|Zoom out/i })).toBeVisible({
@@ -95,7 +119,13 @@ test("PERF-W-001 measures the critical large-book workflow", async ({ browser })
         .count();
       samples.active_pdf_pages.push(activePdfPages);
 
+      const pageTurnStart = performance.now();
+      await page.keyboard.press("ArrowRight");
+      await expect.poll(() => storedLocation(page)).toBe("page:2");
+      samples.pdf_page_turn_ms.push(performance.now() - pageTurnStart);
+
       const targetPage = Math.min(profile.pdfPages, 100);
+      console.log(`[benchmark] iteration ${iteration + 1}: PDF search`);
       const searchStart = performance.now();
       await page.getByRole("button", { name: /Kitapta ara|Search in book/i }).click();
       await page.getByPlaceholder(/Ara|Search/i).fill(`benchmark page ${targetPage}`);
@@ -107,9 +137,19 @@ test("PERF-W-001 measures the critical large-book workflow", async ({ browser })
       samples.pdf_search_ms.push(performance.now() - searchStart);
 
       await page.goto("/");
+      console.log(`[benchmark] iteration ${iteration + 1}: cover cache`);
+      await instrumentObjectUrls(page);
       await expect(page.getByRole("img", { name: pdf.title })).toBeVisible({
         timeout: 15_000,
       });
+      const thumbnailDimensions = await page
+        .getByRole("img", { name: pdf.title })
+        .evaluate((image: HTMLImageElement) => ({
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+        }));
+      samples.cover_thumbnail_width.push(thumbnailDimensions.width);
+      samples.cover_thumbnail_height.push(thumbnailDimensions.height);
       await page.evaluate(() => window.__paperlikeBenchmark?.reset());
       for (const viewName of [/Liste görünümü|List view/i, /Raf görünümü|Shelf view/i]) {
         await page.getByRole("button", { name: viewName }).click();
@@ -122,6 +162,7 @@ test("PERF-W-001 measures the critical large-book workflow", async ({ browser })
       );
       samples.cover_cache_miss_after_view_switch.push(coverObjectUrls);
 
+      console.log(`[benchmark] iteration ${iteration + 1}: backup export`);
       const exportStart = performance.now();
       const downloadPromise = page.waitForEvent("download");
       await page.getByRole("button", { name: /Yedekleme|Backup/i }).click();
@@ -135,6 +176,7 @@ test("PERF-W-001 measures the critical large-book workflow", async ({ browser })
       await clearLibrary(page);
       await expect(page.getByRole("link").filter({ hasText: pdf.title })).toHaveCount(0);
 
+      console.log(`[benchmark] iteration ${iteration + 1}: backup restore`);
       const restoreStart = performance.now();
       await page
         .locator('input[type="file"][accept*=".zip"]')
@@ -156,6 +198,7 @@ test("PERF-W-001 measures the critical large-book workflow", async ({ browser })
   const metrics = [...TIMING_BUDGETS, ...STRUCTURAL_BUDGETS].map((definition) =>
     createMetricResult(definition, samples[definition.id], timingsEnforced)
   );
+  console.log("[benchmark] writing JSON and Markdown reports");
   await writeBenchmarkReport({
     schemaVersion: 1,
     suite: "paperlike-reader",
@@ -169,6 +212,7 @@ test("PERF-W-001 measures the critical large-book workflow", async ({ browser })
       node: process.version,
       os: `${os.platform()} ${os.release()}`,
       architecture: os.arch(),
+      browser: `Chromium ${browser.version()}`,
       commit: process.env.GITHUB_SHA,
     },
     fixtures: {
@@ -188,7 +232,28 @@ test("PERF-W-001 measures the critical large-book workflow", async ({ browser })
 
 async function preparePage(context: BrowserContext): Promise<Page> {
   const page = await context.newPage();
-  await page.addInitScript(() => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "onboarding",
+      JSON.stringify({ state: { seenReaderTutorial: true }, version: 0 })
+    );
+    localStorage.setItem(
+      "reader-settings",
+      JSON.stringify({ state: { scrollMode: true }, version: 0 })
+    );
+    localStorage.setItem(
+      "library-view",
+      JSON.stringify({ state: { viewMode: "grid" }, version: 0 })
+    );
+  });
+  await page.reload();
+  return page;
+}
+
+async function instrumentObjectUrls(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    if (window.__paperlikeBenchmark) return;
     const originalCreate = URL.createObjectURL.bind(URL);
     const originalRevoke = URL.revokeObjectURL.bind(URL);
     let createdObjectUrls = 0;
@@ -215,34 +280,19 @@ async function preparePage(context: BrowserContext): Promise<Page> {
       },
     };
   });
-  await page.goto("/");
-  await page.evaluate(() => {
-    localStorage.setItem(
-      "onboarding",
-      JSON.stringify({ state: { seenReaderTutorial: true }, version: 0 })
-    );
-    localStorage.setItem(
-      "reader-settings",
-      JSON.stringify({ state: { scrollMode: true }, version: 0 })
-    );
-    localStorage.setItem(
-      "library-view",
-      JSON.stringify({ state: { viewMode: "grid" }, version: 0 })
-    );
-  });
-  await page.reload();
-  return page;
 }
 
 async function importFixture(page: Page, fixture: BenchmarkFixture): Promise<number> {
   const startedAt = performance.now();
-  await page
-    .locator('input[type="file"][accept*=".epub"]')
-    .setInputFiles({
+  const input = page.locator('input[type="file"][accept*=".epub"]');
+  if ((await input.count()) === 0) {
+    await page.getByRole("button", { name: /Kitap Ekle|Add Book/i }).click();
+  }
+  await input.setInputFiles({
       name: fixture.name,
       mimeType: fixture.mimeType,
       buffer: fixture.bytes,
-    });
+  });
   await expect(page.getByRole("link").filter({ hasText: fixture.title })).toBeVisible({
     timeout: 30_000,
   });

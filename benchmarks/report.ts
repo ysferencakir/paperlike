@@ -33,6 +33,7 @@ export interface BenchmarkReport {
     node: string;
     os: string;
     architecture: string;
+    browser?: string;
     commit?: string;
   };
   fixtures: Record<string, { bytes: number; itemCount: number; mimeType: string }>;
@@ -95,6 +96,7 @@ function renderMarkdown(report: BenchmarkReport): string {
 - Iterations: ${report.iterations}
 - Timing budgets enforced: ${report.timingsEnforced ? "yes" : "no"}
 - Commit: ${report.environment.commit ?? "local working tree"}
+- Runtime: ${report.environment.browser ?? report.environment.node}
 
 | Metric | p50 | p95 | Budget | Status |
 | --- | ---: | ---: | ---: | --- |

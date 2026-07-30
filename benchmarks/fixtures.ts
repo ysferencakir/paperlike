@@ -71,7 +71,7 @@ export async function createEpubFixture(
 
   const manifest: string[] = [];
   const spine: string[] = [];
-  const navItems: string[] = [];
+  const navPoints: string[] = [];
   const words = Array.from(
     { length: profile.epubWordsPerChapter },
     (_, index) => `benchmark${index % 97}`
@@ -82,7 +82,9 @@ export async function createEpubFixture(
     const href = `chapter-${chapter}.xhtml`;
     manifest.push(`<item id="${id}" href="${href}" media-type="application/xhtml+xml"/>`);
     spine.push(`<itemref idref="${id}"/>`);
-    navItems.push(`<li><a href="${href}">Benchmark chapter ${chapter}</a></li>`);
+    navPoints.push(
+      `<navPoint id="nav-${chapter}" playOrder="${chapter}"><navLabel><text>Benchmark chapter ${chapter}</text></navLabel><content src="${href}"/></navPoint>`
+    );
     zip.file(
       `OEBPS/${href}`,
       `<?xml version="1.0" encoding="UTF-8"?>
@@ -92,16 +94,18 @@ export async function createEpubFixture(
   }
 
   zip.file(
-    "OEBPS/nav.xhtml",
+    "OEBPS/toc.ncx",
     `<?xml version="1.0" encoding="UTF-8"?>
-<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-<head><title>Contents</title></head><body><nav epub:type="toc"><ol>${navItems.join("")}</ol></nav></body>
-</html>`
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+  <head><meta name="dtb:uid" content="paperlike-benchmark-${profileName}"/></head>
+  <docTitle><text>${title}</text></docTitle>
+  <navMap>${navPoints.join("\n")}</navMap>
+</ncx>`
   );
   zip.file(
     "OEBPS/content.opf",
     `<?xml version="1.0" encoding="UTF-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id">
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="book-id">
   <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
     <dc:identifier id="book-id">paperlike-benchmark-${profileName}</dc:identifier>
     <dc:title>${title}</dc:title>
@@ -109,10 +113,10 @@ export async function createEpubFixture(
     <dc:language>tr</dc:language>
   </metadata>
   <manifest>
-    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
     ${manifest.join("\n")}
   </manifest>
-  <spine>${spine.join("\n")}</spine>
+  <spine toc="ncx">${spine.join("\n")}</spine>
 </package>`
   );
 
@@ -120,11 +124,10 @@ export async function createEpubFixture(
     name: `paperlike-benchmark-${profileName}.epub`,
     mimeType: "application/epub+zip",
     title,
-    bytes: await zip.generateAsync({
-      type: "nodebuffer",
-      compression: "DEFLATE",
-      compressionOptions: { level: 6 },
-    }),
+    // STORE mirrors the parser compatibility fixture and keeps generation
+    // deterministic. The repeated payload still gives each profile a stable
+    // uncompressed workload for IndexedDB and backup measurements.
+    bytes: await zip.generateAsync({ type: "nodebuffer", compression: "STORE" }),
     itemCount: profile.epubChapters,
   };
 }

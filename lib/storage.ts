@@ -91,6 +91,7 @@ export async function addBook(
   }
   await tx.done;
   void import("./cloud-sync").then((m) => m.pushBook(book)).catch(console.error);
+  void import("./cloud-sync").then((m) => m.syncBookFileToDrive(book, fileBlob)).catch(console.error);
 }
 
 export async function getAllBooks(): Promise<Book[]> {

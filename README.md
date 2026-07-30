@@ -137,6 +137,8 @@ Tarayıcıda `http://localhost:3000` adresini açın.
 | `npm run test:watch` | Testleri izleme modunda çalıştırır |
 | `npm run test:e2e` | Production build + Chromium E2E testleri |
 | `npm run test:e2e:ui` | Playwright görsel test arayüzü |
+| `npm run benchmark:web` | Mevcut `out/` üzerinde web performans benchmarkı |
+| `npm run benchmark:web:build` | Production build + web performans benchmarkı |
 | `npm run check` | Lint, type-check ve test kalite kapısı |
 | `npm run cap:sync` | Web build ve Android Capacitor sync |
 | `npm run android:open` | Android Studio'da projeyi açma |

@@ -78,9 +78,20 @@ export function getFirebaseAuth(): Auth | undefined {
   const firebaseApp = getFirebaseApp();
   if (!firebaseApp) return undefined;
   if (!auth) {
-    auth = isNative
-      ? initializeAuth(firebaseApp, { persistence: indexedDBLocalPersistence })
-      : getAuth(firebaseApp);
+    try {
+      auth = isNative
+        ? initializeAuth(firebaseApp, { persistence: indexedDBLocalPersistence })
+        : getAuth(firebaseApp);
+    } catch {
+      // `initializeAuth()` throws if this FirebaseApp already has an Auth
+      // instance (e.g. this module's own `auth`/`app` variables were reset
+      // by a dev-time Fast Refresh, but the underlying FirebaseApp survived
+      // via `getApps()[0]` — so initializeAuth() runs a second time on an
+      // app that's already initialized). Falling back to getAuth() recovers
+      // the existing instance instead of leaving `auth` unset and silently
+      // breaking every Firestore write after that point.
+      auth = getAuth(firebaseApp);
+    }
   }
   return auth;
 }

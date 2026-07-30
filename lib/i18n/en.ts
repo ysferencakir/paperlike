@@ -40,6 +40,13 @@ export const en: Record<keyof typeof tr, string> = {
   "backup.export": "Back Up Library",
   "backup.import": "Restore from Backup",
   "backup.biometricLock": "Biometric Lock",
+  "backup.progressCollecting": "Preparing books",
+  "backup.progressCompressing": "Creating backup",
+  "backup.progressValidating": "Validating backup",
+  "backup.progressRestoring": "Restoring books",
+  "backup.progressMetadata": "Restoring reading data",
+  "backup.cancel": "Cancel operation",
+  "backup.cancelled": "Backup operation cancelled.",
 
   // Book actions menu
   "bookActions.ariaLabel": "Book options",
@@ -233,6 +240,8 @@ export const en: Record<keyof typeof tr, string> = {
   "search.title": "Search in Book",
   "search.placeholder": "Search…",
   "search.noResults": "No results found.",
+  "search.progress": "{completed}/{total} parts searched · {count} results",
+  "search.failed": "Something went wrong while searching the book.",
 
   // Selection bar
   "selection.cancel": "Cancel",

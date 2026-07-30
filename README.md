@@ -72,7 +72,11 @@ stratejisi, bilinen sorunlar ve ayrıntılı yol haritası için:
 - Uzak PDF sayfaları düşük maliyetli yer tutucular olarak kalır ve yaklaştıkça yüklenir
 - PDF arama ve metin okuma, React-PDF'in zaten açtığı belge nesnesini yeniden kullanır
 - EPUB konum üretimi ilk sayfadan sonraya ertelenir ve dosya boyutuna göre seyrekleştirilir
+- EPUB/PDF tam metin araması 250 ms debounce, iptal ve bölüm/sayfa ilerlemesi kullanır
+- Yeni sorgu veya panelin kapanması önceki büyük kitap taramasını durdurur
 - 120 sayfalık sentetik PDF, gerçek Chromium E2E testinde en fazla 10 yakın render ile doğrulanır
+- Backup büyük EPUB/PDF girdilerini yeniden sıkıştırmadan ve tarayıcıda eager ArrayBuffer kopyası oluşturmadan ZIP'e ekler
+- Backup/restore aşama ilerlemesi, iptal düğmesi, CRC ve eksik dosya ön doğrulaması içerir
 
 ## Platform durumu
 
@@ -84,7 +88,7 @@ stratejisi, bilinen sorunlar ve ayrıntılı yol haritası için:
 | Türkçe/İngilizce | Mevcut |
 | Firebase/auth temeli | Geliştirme aşamasında |
 | PWA/offline app shell | Mevcut; güncelleme/quota UX'i geliştirilmeli |
-| Büyük kitap optimizasyonu | Kısmi; PDF lazy rendering ve EPUB konum politikası mevcut |
+| Büyük kitap optimizasyonu | Kısmi; PDF lazy rendering, kontrollü arama ve backup/restore ilk optimizasyonu mevcut |
 | Google Play production dağıtımı | Planlı |
 | Koleksiyonlar/etiketler | Planlı |
 | Bulut senkronizasyonu | Tasarlanmış, uygulanıyor |

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { DownloadCloud, Loader2, UploadCloud } from "lucide-react";
+import { DownloadCloud, Loader2, UploadCloud, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,7 +12,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { exportLibrary, importLibrary } from "@/lib/backup";
+import {
+  exportLibrary,
+  importLibrary,
+  isBackupAbortError,
+  type BackupProgress,
+} from "@/lib/backup";
 import { shareFile } from "@/lib/native-ui";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { useLocaleStore, type Locale } from "@/store/useLocaleStore";
@@ -31,33 +36,72 @@ export function BackupMenu() {
   const locale = useLocaleStore((s) => s.locale);
   const setLocale = useLocaleStore((s) => s.setLocale);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<BackupProgress | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const controllerRef = useRef<AbortController | null>(null);
+
+  const stageLabel = (stage: BackupProgress["stage"]) => {
+    switch (stage) {
+      case "collecting":
+        return t("backup.progressCollecting");
+      case "compressing":
+        return t("backup.progressCompressing");
+      case "validating":
+        return t("backup.progressValidating");
+      case "restoring":
+        return t("backup.progressRestoring");
+      case "metadata":
+        return t("backup.progressMetadata");
+    }
+  };
 
   const handleExport = async () => {
+    const controller = new AbortController();
+    controllerRef.current = controller;
     setBusy(true);
+    setProgress(null);
     try {
-      const zip = await exportLibrary();
+      const zip = await exportLibrary({
+        signal: controller.signal,
+        onProgress: setProgress,
+      });
       await shareFile(zip, backupFilename(), t("backup.shareTitle"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("backup.exportFailed");
-      toast.error(message);
+      if (isBackupAbortError(err)) toast.message(t("backup.cancelled"));
+      else {
+        const message = err instanceof Error ? err.message : t("backup.exportFailed");
+        toast.error(message);
+      }
     } finally {
+      controllerRef.current = null;
+      setProgress(null);
       setBusy(false);
     }
   };
 
   const handleImportFile = async (file: File) => {
+    const controller = new AbortController();
+    controllerRef.current = controller;
     setBusy(true);
+    setProgress(null);
     try {
-      const { bookCount } = await importLibrary(file, t);
+      const { bookCount } = await importLibrary(file, t, {
+        signal: controller.signal,
+        onProgress: setProgress,
+      });
       await refresh();
       toast.success(
         bookCount === 1 ? t("backup.restoredOne") : t("backup.restoredMany", { count: bookCount })
       );
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("backup.importFailed");
-      toast.error(message);
+      if (isBackupAbortError(err)) toast.message(t("backup.cancelled"));
+      else {
+        const message = err instanceof Error ? err.message : t("backup.importFailed");
+        toast.error(message);
+      }
     } finally {
+      controllerRef.current = null;
+      setProgress(null);
       setBusy(false);
     }
   };
@@ -107,6 +151,47 @@ export function BackupMenu() {
           if (file) void handleImportFile(file);
         }}
       />
+
+      {busy && progress && (
+        <div
+          className="fixed right-4 top-16 z-[110] w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-border bg-popover/95 p-4 shadow-2xl backdrop-blur-xl"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="mb-2 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{stageLabel(progress.stage)}</p>
+              {progress.currentBook && (
+                <p className="truncate text-xs text-muted-foreground">{progress.currentBook}</p>
+              )}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={t("backup.cancel")}
+              onClick={() => controllerRef.current?.abort()}
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+          <div
+            className="h-1.5 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress.percentage}
+          >
+            <div
+              className="h-full bg-primary transition-[width]"
+              style={{ width: `${progress.percentage}%` }}
+            />
+          </div>
+          <p className="mt-1.5 text-right text-[11px] tabular-nums text-muted-foreground">
+            {progress.percentage}%
+          </p>
+        </div>
+      )}
     </>
   );
 }

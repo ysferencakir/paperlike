@@ -5,6 +5,7 @@ import type { ReaderSurfaceHandle } from "./types";
 
 const pdfMocks = vi.hoisted(() => ({
   getDocument: vi.fn(),
+  loaded: vi.fn(),
   getPage: vi.fn(async () => ({
     getTextContent: vi.fn(async () => ({ items: [{ str: "needle in a large book" }] })),
   })),
@@ -23,6 +24,7 @@ vi.mock("react-pdf", () => ({
     onLoadSuccess: (doc: unknown) => void;
   }) => {
     useEffect(() => {
+      pdfMocks.loaded();
       onLoadSuccess({
         numPages: 1000,
         getPage: pdfMocks.getPage,
@@ -51,6 +53,7 @@ class PassiveIntersectionObserver {
 describe("PdfReaderSurface large-document behavior", () => {
   beforeEach(() => {
     pdfMocks.getDocument.mockReset();
+    pdfMocks.loaded.mockClear();
     pdfMocks.getPage.mockClear();
     vi.stubGlobal("IntersectionObserver", PassiveIntersectionObserver);
   });
@@ -86,5 +89,32 @@ describe("PdfReaderSurface large-document behavior", () => {
 
     expect(pdfMocks.getDocument).not.toHaveBeenCalled();
     expect(pdfMocks.getPage).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports page progress and stops scanning when cancelled", async () => {
+    const ref = createRef<ReaderSurfaceHandle>();
+    const controller = new AbortController();
+    const onProgress = vi.fn((progress: { completed: number }) => {
+      if (progress.completed === 3) controller.abort();
+    });
+    render(
+      <PdfReaderSurface
+        ref={ref}
+        file={new Blob(["large-pdf"], { type: "application/pdf" })}
+        onProgress={vi.fn()}
+      />
+    );
+
+    await waitFor(() => expect(pdfMocks.loaded).toHaveBeenCalled());
+    await expect(
+      ref.current?.search("needle", {
+        signal: controller.signal,
+        onProgress,
+      })
+    ).rejects.toMatchObject({ name: "AbortError" });
+
+    expect(onProgress).toHaveBeenCalledTimes(3);
+    expect(pdfMocks.getPage).toHaveBeenCalledTimes(3);
+    expect(pdfMocks.getDocument).not.toHaveBeenCalled();
   });
 });

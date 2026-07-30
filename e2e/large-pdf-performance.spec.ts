@@ -76,4 +76,10 @@ test("E2E-W-PERF-001 virtualizes a large PDF in continuous mode", async ({ page 
   await expect(
     page.locator('[data-pdf-page-slot="100"] .react-pdf__Page')
   ).toHaveCount(0);
+
+  await page.getByRole("button", { name: /Kitapta ara|Search in book/i }).click();
+  await page.getByPlaceholder(/Ara|Search/i).fill("performance page 100");
+  await expect(
+    page.getByRole("button", { name: /Paperlike performance page 100/i })
+  ).toBeVisible({ timeout: 30_000 });
 });

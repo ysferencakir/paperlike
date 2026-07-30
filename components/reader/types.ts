@@ -10,10 +10,21 @@ export interface ReaderSurfaceHandle {
   /** Paint a persistent highlight at a location. No-op for PDF (no stable overlay target). */
   applyHighlight: (location: string, color: string) => void;
   removeHighlight: (location: string) => void;
-  /** Full-text search across the whole book. Capped to a reasonable result count. */
-  search: (query: string) => Promise<SearchResult[]>;
+  /** Full-text search across the whole book. Capped, cancellable, and progressive. */
+  search: (query: string, options?: SearchOptions) => Promise<SearchResult[]>;
   /** Plain text of the currently visible page/section, for text-to-speech. */
   getCurrentText: () => Promise<string>;
+}
+
+export interface SearchProgress {
+  completed: number;
+  total: number;
+  resultCount: number;
+}
+
+export interface SearchOptions {
+  signal?: AbortSignal;
+  onProgress?: (progress: SearchProgress) => void;
 }
 
 export interface SelectionPayload {

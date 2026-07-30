@@ -40,6 +40,13 @@ export const tr = {
   "backup.export": "Kütüphaneyi Yedekle",
   "backup.import": "Yedekten Geri Yükle",
   "backup.biometricLock": "Biyometrik Kilit",
+  "backup.progressCollecting": "Kitaplar hazırlanıyor",
+  "backup.progressCompressing": "Yedek oluşturuluyor",
+  "backup.progressValidating": "Yedek doğrulanıyor",
+  "backup.progressRestoring": "Kitaplar geri yükleniyor",
+  "backup.progressMetadata": "Okuma verileri geri yükleniyor",
+  "backup.cancel": "İşlemi iptal et",
+  "backup.cancelled": "Yedekleme işlemi iptal edildi.",
 
   // Book actions menu
   "bookActions.ariaLabel": "Kitap seçenekleri",
@@ -233,6 +240,8 @@ export const tr = {
   "search.title": "Kitapta Ara",
   "search.placeholder": "Ara…",
   "search.noResults": "Sonuç bulunamadı.",
+  "search.progress": "{completed}/{total} kısım tarandı · {count} sonuç",
+  "search.failed": "Kitap aranırken bir hata oluştu.",
 
   // Selection bar
   "selection.cancel": "Vazgeç",

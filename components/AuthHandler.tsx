@@ -3,11 +3,16 @@
 import { useEffect } from "react";
 import { initAuthListener } from "@/store/useAuthStore";
 import { getFirebaseApp, setFirebaseIsNativePlatform } from "@/lib/firebase";
+import { useSettingsStore } from "@/store/useSettingsStore";
+
+const SETTINGS_PUSH_DEBOUNCE_MS = 800;
 
 /**
  * Subscribes once, at the app root, to Firebase's authStateChange stream so
  * useAuthStore always reflects who's signed in — mirrors the pattern used by
  * the other singleton handlers (BackButtonHandler, OpenFileHandler, etc.).
+ * Also keeps reader settings pushed to Firestore while signed in, debounced
+ * so dragging a slider doesn't fire a write per tick.
  */
 export function AuthHandler() {
   useEffect(() => {
@@ -26,6 +31,20 @@ export function AuthHandler() {
     return () => {
       cancelled = true;
       cleanup?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = useSettingsStore.subscribe(() => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        void import("@/lib/cloud-sync").then((m) => m.pushSettingsSnapshot().catch(console.error));
+      }, SETTINGS_PUSH_DEBOUNCE_MS);
+    });
+    return () => {
+      unsubscribe();
+      if (debounceTimer) clearTimeout(debounceTimer);
     };
   }, []);
 

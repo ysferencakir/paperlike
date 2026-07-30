@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Search } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import type { SearchResult } from "./types";
+import type { SearchOptions, SearchProgress, SearchResult } from "./types";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { isSearchAbortError } from "@/lib/search-control";
+
+const SEARCH_DEBOUNCE_MS = 250;
 
 export function SearchPanel({
   open,
@@ -14,7 +17,7 @@ export function SearchPanel({
 }: {
   open: boolean;
   onOpenChange: (value: boolean) => void;
-  onSearch: (query: string) => Promise<SearchResult[]>;
+  onSearch: (query: string, options?: SearchOptions) => Promise<SearchResult[]>;
   onNavigate: (location: string) => void;
 }) {
   const { t } = useTranslation();
@@ -22,22 +25,97 @@ export function SearchPanel({
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [progress, setProgress] = useState<SearchProgress | null>(null);
+  const [failed, setFailed] = useState(false);
+  const controllerRef = useRef<AbortController | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestIdRef = useRef(0);
 
-  const runSearch = async (q: string) => {
+  const cancelSearch = () => {
+    requestIdRef.current += 1;
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+  };
+
+  useEffect(
+    () => () => {
+      controllerRef.current?.abort();
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (open) return;
+    requestIdRef.current += 1;
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+  }, [open]);
+
+  const resetSearch = () => {
+    cancelSearch();
+    setQuery("");
+    setResults([]);
+    setLoading(false);
+    setSearched(false);
+    setProgress(null);
+    setFailed(false);
+  };
+
+  const runSearch = (q: string) => {
     setQuery(q);
+    cancelSearch();
+    setFailed(false);
+    setProgress(null);
     if (!q.trim()) {
       setResults([]);
+      setLoading(false);
       setSearched(false);
       return;
     }
+
+    const requestId = requestIdRef.current;
+    const controller = new AbortController();
+    controllerRef.current = controller;
     setLoading(true);
-    try {
-      const r = await onSearch(q);
-      setResults(r);
-      setSearched(true);
-    } finally {
-      setLoading(false);
-    }
+    setSearched(false);
+    timerRef.current = setTimeout(() => {
+      timerRef.current = null;
+      void onSearch(q, {
+        signal: controller.signal,
+        onProgress: (nextProgress) => {
+          if (requestIdRef.current === requestId && !controller.signal.aborted) {
+            setProgress(nextProgress);
+          }
+        },
+      })
+        .then((nextResults) => {
+          if (requestIdRef.current !== requestId || controller.signal.aborted) return;
+          setResults(nextResults);
+          setSearched(true);
+        })
+        .catch((error: unknown) => {
+          if (
+            requestIdRef.current !== requestId ||
+            controller.signal.aborted ||
+            isSearchAbortError(error)
+          ) {
+            return;
+          }
+          setResults([]);
+          setSearched(true);
+          setFailed(true);
+        })
+        .finally(() => {
+          if (requestIdRef.current !== requestId) return;
+          controllerRef.current = null;
+          setLoading(false);
+        });
+    }, SEARCH_DEBOUNCE_MS);
   };
 
   return (
@@ -45,11 +123,7 @@ export function SearchPanel({
       open={open}
       onOpenChange={(v) => {
         onOpenChange(v);
-        if (!v) {
-          setQuery("");
-          setResults([]);
-          setSearched(false);
-        }
+        if (!v) resetSearch();
       }}
     >
       <SheetContent
@@ -74,7 +148,43 @@ export function SearchPanel({
           </div>
         </div>
 
+        {loading && progress && (
+          <div className="px-5 pb-3" role="status" aria-live="polite">
+            <div className="mb-1.5 flex justify-between text-[11px] text-muted-foreground">
+              <span>
+                {t("search.progress", {
+                  completed: progress.completed,
+                  total: progress.total,
+                  count: progress.resultCount,
+                })}
+              </span>
+              <span>
+                {progress.total
+                  ? `${Math.round((progress.completed / progress.total) * 100)}%`
+                  : "0%"}
+              </span>
+            </div>
+            <div className="h-1 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full bg-primary transition-[width]"
+                style={{
+                  width: `${
+                    progress.total
+                      ? Math.min(100, (progress.completed / progress.total) * 100)
+                      : 0
+                  }%`,
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col gap-1 overflow-y-auto px-2">
+          {failed && (
+            <p className="px-3 py-6 text-center text-[13px] text-destructive" role="alert">
+              {t("search.failed")}
+            </p>
+          )}
           {searched && !loading && results.length === 0 && (
             <p className="px-3 py-6 text-center text-[13px] text-muted-foreground">
               {t("search.noResults")}
@@ -86,6 +196,7 @@ export function SearchPanel({
               type="button"
               onClick={() => {
                 onNavigate(r.location);
+                resetSearch();
                 onOpenChange(false);
               }}
               className="rounded-xl px-3 py-2.5 text-left text-[13px] leading-snug text-foreground hover:bg-muted"

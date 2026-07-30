@@ -5,15 +5,10 @@ import ePub from "epubjs";
 import type { Book as EpubBook, Contents, Location as EpubLocation, Rendition } from "epubjs";
 import type { ReaderSettings } from "@/lib/types";
 import { getEpubLocationBreak } from "@/lib/reader-performance";
-import type { ReaderProgressInfo, ReaderSurfaceHandle, SearchResult, SelectionPayload, TocEntry } from "./types";
+import { searchEpubSections, type EpubSearchSection } from "@/lib/epub-search";
+import type { ReaderProgressInfo, ReaderSurfaceHandle, SelectionPayload, TocEntry } from "./types";
 import { PageCurlOverlay, PAGE_CURL_TOTAL_MS } from "./PageCurlOverlay";
 import { useTranslation } from "@/lib/i18n/useTranslation";
-
-interface SearchableSection {
-  load: (request: (path: string) => Promise<unknown>) => Promise<unknown>;
-  unload: () => void;
-  find: (query: string) => { cfi: string; excerpt: string }[];
-}
 
 function toTocEntries(items: { href: string; label: string; subitems?: unknown[] }[]): TocEntry[] {
   return items.map((item) => ({
@@ -208,23 +203,13 @@ export const EpubReaderSurface = forwardRef<ReaderSurfaceHandle, EpubReaderSurfa
       removeHighlight: (location: string) => {
         renditionRef.current?.annotations.remove(location, "highlight");
       },
-      search: async (query: string) => {
+      search: async (query, options) => {
         const book = bookRef.current;
         const trimmed = query.trim();
         if (!book || !trimmed) return [];
-        const results: SearchResult[] = [];
-        const sections = (book.spine as unknown as { spineItems: SearchableSection[] })
+        const sections = (book.spine as unknown as { spineItems: EpubSearchSection[] })
           .spineItems;
-        for (const section of sections) {
-          if (results.length >= 50) break;
-          await section.load(book.load.bind(book));
-          for (const m of section.find(trimmed)) {
-            results.push({ location: m.cfi, excerpt: m.excerpt });
-            if (results.length >= 50) break;
-          }
-          section.unload();
-        }
-        return results;
+        return searchEpubSections(sections, book.load.bind(book), trimmed, options);
       },
       getCurrentText: async () => {
         // epub.js's own types claim this returns a single Contents, but at

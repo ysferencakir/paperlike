@@ -20,7 +20,7 @@
 | Android sürümü | `versionCode 1`, `versionName 1.0` |
 | Lisans | MIT |
 | Son kapsamlı güncelleme | 30 Temmuz 2026 |
-| Belge sürümü | `1.7` |
+| Belge sürümü | `1.9` |
 | Belge durumu | Aktif ana kaynak |
 | Belge sahibi | Proje sahibi/aktif maintainer |
 | Son doğrulanan branch | `main` |
@@ -57,11 +57,11 @@ sonraki dosya durumuna göre doğrulandığını açıkça söylemelidir.
 |---|---|---|
 | EPUB okuyucu çekirdeği | Mevcut | Okuma, TOC, arama, CFI, vurgu, not ve ayarlar |
 | PDF okuyucu çekirdeği | Mevcut/kısmi | Okuma, arama, zoom ve not var; görsel vurgu overlay'i yok |
-| Yerel veri ve backup | Mevcut | IndexedDB + ZIP yedek; büyük veri performansı ölçülmedi |
+| Yerel veri ve backup | Mevcut/iyileştirilmiş | IndexedDB + ZIP; Blob/STORE optimizasyonu, ilerleme, iptal, CRC ve ön doğrulama var; gerçek cihaz tepe belleği ölçülmedi |
 | Android sistem entegrasyonu | Mevcut | Intent, widget, shortcut, bildirim, TTS, immersive, Crashlytics |
 | Web ürünü | Mevcut PWA prototipi | Statik export, manifest, service worker ve offline app shell var; web deploy/güncelleme UX'i eksik |
 | Erişilebilirlik/i18n | Kısmi doğrulanmış | TR/EN ve TalkBack temeli var; tam otomasyon/matris yok |
-| Otomatik test | Aktif temel | 21 Vitest testi, 3 Playwright E2E senaryosu ve web CI kalite kapısı var; kapsam genişletilmeli |
+| Otomatik test | Aktif temel | 35 Vitest testi, 3 Playwright E2E senaryosu ve web CI kalite kapısı var; kapsam genişletilmeli |
 | Büyük kitap performansı | Kısmi | PDF lazy page rendering, belge yeniden kullanımı ve EPUB konum yoğunluğu politikası var; gerçek cihaz baseline'ı gerekli |
 | Google Play yayını | Planlı | AAB, imzalama, mağaza süreci ve in-app update eksik |
 | Bulut senkronizasyonu | Auth UI hazır, senkron yok | Firebase Console + giriş/kayıt ekranı tamam; Firestore kuralları, gerçek veri senkronu ve Drive yok |
@@ -88,7 +88,7 @@ tahminidir. Her sürüm planında test kanıtlarıyla yeniden değerlendirilmeli
 
 ### 0.3 Yayını bugün engelleyen başlıca konular
 
-1. Storage, backup, import ve uçtan uca akışlarda otomatik test kapsamının eksikliği.
+1. Android native sistem akışlarının gerçek cihaz/otomasyon matrisinin eksikliği.
 2. Büyük EPUB/PDF dosyaları için ölçülmüş performans sınırlarının olmaması.
 3. Web `0.1.0` ile Android `1.0` sürüm bilgilerinin ayrışması.
 4. Release signing, AAB ve Play Store dağıtım hattının bulunmaması.
@@ -220,7 +220,7 @@ hazır” sayılmaz.
 | PR-001 | Kullanıcı olarak EPUB/PDF dosyamı eklemek istiyorum. | Desteklenen dosya import edilir; metadata fallback'i vardır; hata açıklanır; kayıt kütüphanede görünür. | Mevcut |
 | PR-002 | Kitabımı bıraktığım yerden sürdürmek istiyorum. | EPUB CFI/PDF sayfası ve yüzde saklanır; yeniden açılış doğru konuma gider. | Mevcut |
 | PR-003 | Okuma görünümünü kişiselleştirmek istiyorum. | Tema, font, boyut, satır, margin, sütun ve filtreler uygulanır ve yeniden açılışta korunur. | Mevcut |
-| PR-004 | Kitabın içinde arama yapmak istiyorum. | Sonuçta alıntı ve konum görünür; seçilen sonuç doğru CFI/sayfaya gider; boş sorgu güvenlidir. | Mevcut |
+| PR-004 | Kitabın içinde arama yapmak istiyorum. | Sonuçta alıntı ve konum görünür; seçilen sonuç doğru CFI/sayfaya gider; boş sorgu güvenlidir. | Mevcut — debounce, iptal ve ilerleme göstergesi doğrulandı |
 | PR-005 | Metni vurgulayıp not almak istiyorum. | Renk/önem/not saklanır; EPUB görsel vurgu gösterir; PDF açık biçimde sayfa+alıntı olarak saklar. | Mevcut/kısmi |
 | PR-006 | Yer imi ekleyip geri dönmek istiyorum. | Aynı kitapla ilişkilendirilir; bölüm/sayfa etiketi gösterilir; silinebilir ve konuma gider. | Mevcut |
 | PR-007 | Notlarımı dışa aktarmak istiyorum. | Word ve PDF çıktısı doğru kitap/not sırasını taşır; web indirir, Android paylaşır. | Mevcut |
@@ -529,7 +529,7 @@ revize etmelidir.
 | NFR-004 | Etkileşim yanıtı | Kontrol tepkisi çoğu durumda `≤100ms` | Profiling build | Ölçülmedi |
 | NFR-005 | Animasyon akıcılığı | Hedef 60 FPS; uzun frame oranı raporlanmalı | Orta sınıf cihaz | Ölçülmedi |
 | NFR-006 | İlerleme dayanıklılığı | Arka plan/process kaybında en fazla son flush aralığı kadar süre kaybı; konum kaybı olmamalı | Lifecycle testi | Kısmi |
-| NFR-007 | Backup doğruluğu | Desteklenen şemada round trip veri kaybı `0` | Fixture karşılaştırması | Manuel/kısmi |
+| NFR-007 | Backup doğruluğu | Desteklenen şemada round trip veri kaybı `0` | Fixture karşılaştırması | Otomatik temel geçti; gerçek cihaz açık |
 | NFR-008 | Crash-free kullanım | Beta için `≥99.5%`, stable hedefi `≥99.8%` crash-free session | Crashlytics release verisi | Veri yok |
 | NFR-009 | Offline çekirdek | Önceden eklenmiş kitapta okuma/not/ilerleme için ağ isteği zorunlu olmamalı | Ağ kapalı E2E | Kısmi |
 | NFR-010 | Erişilebilirlik | Kritik akışlarda klavye, screen reader ve yeniden akış engeli olmamalı; AA seviyesi hedeflenmeli | Manuel + otomasyon | Kısmi |
@@ -819,6 +819,13 @@ Yeni kod aşağıdaki kuralları bozmamalıdır:
 - Eski uygulama daha yeni backup'ı açık hata ile reddetmelidir.
 - Import sırasında doğrulama tamamlanmadan mevcut veriler geri döndürülemez
   biçimde değiştirilmemelidir.
+- V1 restore, ZIP CRC kontrolünü, manifest şemasını, benzersiz/güvenli kitap
+  kimliklerini ve bütün zorunlu kitap dosyalarını ilk IndexedDB yazımından önce
+  doğrular.
+- EPUB/PDF girdileri zaten sıkıştırılmış oldukları için backup içinde `STORE`
+  kullanır; manifest `DEFLATE` edilebilir.
+- Tarayıcı export'u kitap Blob'unu eager ArrayBuffer kopyasına çevirmeden JSZip'e
+  verir; JSZip'in nihai ZIP Blob'u yine işlem belleğinde üretilir.
 - Koleksiyon/senkron gibi yeni veri alanları eklenirken eski `category` ve
   metadata kayıtları için dönüşüm yazılmalıdır.
 
@@ -1438,7 +1445,22 @@ kapsar:
 4. `getEpubLocationBreak`, normal kitaplarda `1600` karakter aralığını korur;
    büyük dosyalarda tahmini en fazla 4.000 konum hedefiyle aralığı büyütür.
 5. `E2E-W-PERF-001`, production Chromium çıktısında 120 sayfalık sentetik PDF
-   için 120 page slot'a karşı en fazla 10 aktif React-PDF sayfasını doğrular.
+   için 120 page slot'a karşı en fazla 10 aktif React-PDF sayfasını ve uzak
+   100. sayfadaki metnin tam kitap aramasından bulunmasını doğrular.
+6. Arama paneli 250 ms debounce uygular; yeni sorgu ve panel kapanışı aktif
+   `AbortController` sinyalini iptal eder.
+7. EPUB/PDF motorları her bölüm/sayfadan sonra ilerleme bildirir, en fazla 50
+   sonuç üretir ve dört tarama biriminde bir ana iş parçacığına kontrol verir.
+8. EPUB araması iptal veya hata sırasında yüklenmiş bölümü `finally` ile unload
+   eder; PDF araması açık `PDFDocumentProxy` nesnesini yeniden kullanır.
+9. Backup export'u büyük EPUB/PDF ve kapak girdilerini `STORE` ile ekler;
+   tarayıcıda Blob girdisini eager ArrayBuffer kopyasına dönüştürmez.
+10. Backup/restore `collecting`, `compressing`, `validating`, `restoring` ve
+    `metadata` aşamalarını yüzdeyle bildirir ve kullanıcı iptalini kabul eder.
+11. Restore CRC, manifest ve bütün zorunlu dosyaları ilk IndexedDB mutasyonundan
+    önce doğrular; eksik dosyalı arşiv kısmi restore başlatmaz.
+12. `IT-BACKUP-LARGE-001`, altı adet 512 KiB ikili kitapla 3 MiB çok-kitaplı
+    round-trip ve aşama sırasını doğrular.
 
 ### 15.4 Kalan yaklaşım
 
@@ -1446,9 +1468,10 @@ kapsar:
 2. Import süresi, reader first paint, sayfa geçişi, arama ve backup için ölçüm
    bütçeleri tanımlanmalıdır.
 3. Gerçek Android cihazlarda p50/p95, tepe bellek ve uzun frame ölçülmelidir.
-4. Arama indeksleri tembel ve iptal edilebilir çalışmalıdır.
-5. Uzun işlemler ilerleme göstergesi ve iptal desteği vermelidir.
-6. ZIP işlemlerinde streaming veya worker seçenekleri araştırılmalıdır.
+4. Kalıcı/tembel arama indeksleri değerlendirilmelidir.
+5. Import gibi kalan uzun işlemler ilerleme ve iptal desteği vermelidir.
+6. JSZip'in nihai arşivi bellekte üretme sınırı için streaming veya worker
+   seçenekleri araştırılmalıdır.
 7. Kapaklar uygun boyuta küçültülmeli ve URL yaşam döngüleri temizlenmelidir.
 
 ---
@@ -1677,8 +1700,8 @@ izin listesine alınmamalıdır.
 ### 17.1 Güncel durum
 
 Vitest/jsdom/fake-indexeddb katmanı reader bootstrap, IndexedDB CRUD, backup
-round-trip, import yönlendirme, EPUB ayrıştırma, i18n, PWA manifesti ve büyük
-kitap render politikalarını kapsar.
+round-trip, import yönlendirme, EPUB ayrıştırma, i18n, PWA manifesti, büyük
+kitap render politikaları ve iptal edilebilir aramayı kapsar.
 Playwright katmanı production statik export üzerinde kütüphane → reader →
 ilerleme, offline PWA app-shell ve 120 sayfalık PDF lazy-render akışlarını gerçek
 Chromium'da doğrular.
@@ -1689,19 +1712,23 @@ senaryolarını temsil etmez.
 
 | Test/kapı | Kanıt | Son sonuç | Ortam | Baz | Tarih |
 |---|---|---|---|---|---|
-| Vitest toplamı | 9 test dosyası | **Geçti — 21/21** | Windows, Node `24.15.0`, jsdom/node/fake-indexeddb | `05cda45` + çalışma ağacı | 2026-07-30 |
+| Vitest toplamı | 13 test dosyası | **Geçti — 35/35** | Windows, Node `24.15.0`, jsdom/node/fake-indexeddb | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-READER-LOAD-001` | `components/reader/useReaderBootstrap.test.ts` | **Geçti — 6/6** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-STORAGE-001` | `lib/storage.test.ts` | **Geçti — 1/1** | Windows, fake-indexeddb | `05cda45` + çalışma ağacı | 2026-07-30 |
-| `IT-BACKUP-*` | `lib/backup.test.ts` | **Geçti — 2/2** | Windows, fake-indexeddb | `05cda45` + çalışma ağacı | 2026-07-30 |
+| `IT-BACKUP-*` | `lib/backup.test.ts` | **Geçti — 7/7** | Windows, fake-indexeddb + 3 MiB binary fixture | `05cda45` + çalışma ağacı | 2026-07-30 |
+| `IT-BACKUP-UI-001` | `components/library/BackupMenu.test.tsx` | **Geçti — 1/1** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-IMPORT-001` | `lib/import-book.test.ts` | **Geçti — 4/4** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-EPUB-PARSE-001` | `lib/epub-loader.test.ts` | **Geçti — 1/1** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `UT-I18N-KEYS-001` | `lib/i18n/dictionaries.test.ts` | **Geçti — 1/1** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `UT-PWA-MANIFEST-001` | `app/manifest.test.ts` | **Geçti — 1/1** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `UT-PERF-POLICY-001` | `lib/reader-performance.test.ts` | **Geçti — 3/3** | Windows, Node | `05cda45` + çalışma ağacı | 2026-07-30 |
-| `IT-PDF-VIRTUAL-001` | `components/reader/PdfReaderSurface.test.tsx` | **Geçti — 2/2** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
+| `IT-PDF-VIRTUAL-001` | `components/reader/PdfReaderSurface.test.tsx` | **Geçti — 3/3** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
+| `UT-SEARCH-CONTROL-001` | `lib/search-control.test.ts` | **Geçti — 3/3** | Windows, Node | `05cda45` + çalışma ağacı | 2026-07-30 |
+| `IT-EPUB-SEARCH-001` | `lib/epub-search.test.ts` | **Geçti — 2/2** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
+| `IT-SEARCH-PANEL-001` | `components/reader/SearchPanel.test.tsx` | **Geçti — 2/2** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `E2E-W-READER-001` | `e2e/library-reader-progress.spec.ts` | **Geçti — 1/1** | Chromium, production statik export | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `E2E-W-PWA-001` | `e2e/pwa-offline.spec.ts` | **Geçti — 1/1** | Chromium offline, production statik export | `05cda45` + çalışma ağacı | 2026-07-30 |
-| `E2E-W-PERF-001` | `e2e/large-pdf-performance.spec.ts` | **Geçti — 1/1; 120 slot, ≤10 aktif sayfa** | Chromium, production statik export | `05cda45` + çalışma ağacı | 2026-07-30 |
+| `E2E-W-PERF-001` | `e2e/large-pdf-performance.spec.ts` | **Geçti — 1/1; 120 slot, ≤10 aktif sayfa, uzak sayfa araması** | Chromium, production statik export | `05cda45` + çalışma ağacı | 2026-07-30 |
 | Type-check | `npm run type-check` | **Geçti** | Windows, TypeScript 5 | `05cda45` + çalışma ağacı | 2026-07-30 |
 | ESLint | `npm run lint` | **Geçti — 0 hata, 2 Firebase uyarısı** | Windows, ESLint 9 | `05cda45` + çalışma ağacı | 2026-07-30 |
 | Production build | `npm run build` | **Geçti — 4 statik route** | Windows, Next.js 16.2.11 | `05cda45` + çalışma ağacı | 2026-07-30 |
@@ -1947,7 +1974,7 @@ Test kimliği sınıfları:
 | PR-005 Vurgu/not | `IT-HIGHLIGHT-001` | `E2E-W-NOTES-001`, `MAN-NOTES` | Planlı + manuel |
 | PR-006 Yer imi | `IT-BOOKMARK-001` | `E2E-W-NOTES-001` | Planlı |
 | PR-007 Dışa aktarma | `IT-EXPORT-001` | `MAN-EXPORT` | Planlı + manuel |
-| PR-008 Backup | `IT-BACKUP-ROUNDTRIP-001`, `IT-BACKUP-VALIDATION-001` | `MAN-BACKUP` | Otomatik temel geçti |
+| PR-008 Backup | `IT-BACKUP-ROUNDTRIP-001`, `IT-BACKUP-VALIDATION-001`, `IT-BACKUP-CONTROL-001`, `IT-BACKUP-LARGE-001`, `IT-BACKUP-UI-001` | Gerçek cihaz tepe bellek ve process-death testi | Round-trip, eksik arşiv, iptal, ilerleme ve 3 MiB fixture geçti |
 | PR-009 Kütüphane | `IT-STORAGE-001` | `E2E-W-READER-001` | Otomatik temel geçti |
 | PR-010 İstatistik | `UT-STREAK-001`, `IT-STATS-001` | `MAN-STATS` | Planlı + manuel |
 | PR-011 Offline | `E2E-W-PWA-001` | `E2E-A-OFFLINE-001` | Web app-shell offline testi geçti |
@@ -1958,7 +1985,7 @@ Test kimliği sınıfları:
 | PR-016 Koleksiyon | `IT-COLLECTION-MIGRATION-001` | `E2E-W-COLLECTION-001` | Planlı |
 | PR-017 Senkron | `IT-SYNC-CONFLICT-001` | `E2E-W-SYNC-001`, `E2E-A-SYNC-001` | Planlı |
 | PR-018 Hesap silme | `SEC-ACCOUNT-DELETE-001` | `E2E-W-ACCOUNT-001` | Planlı |
-| PR-019 Büyük kitap | `UT-PERF-POLICY-001`, `IT-PDF-VIRTUAL-001` | `E2E-W-PERF-001`, gerçek cihaz baseline'ı, `PERF-BACKUP-001` | Web PDF temeli geçti; gerçek cihaz ölçümü planlı |
+| PR-019 Büyük kitap | `UT-PERF-POLICY-001`, `IT-PDF-VIRTUAL-001`, `UT-SEARCH-CONTROL-001`, `IT-EPUB-SEARCH-001`, `IT-SEARCH-PANEL-001` | `E2E-W-PERF-001`, gerçek cihaz baseline'ı, `PERF-BACKUP-001` | Web PDF ve iptal edilebilir arama temeli geçti; gerçek cihaz ölçümü planlı |
 | PR-020 Güncelleme | `E2E-A-UPDATE-001` | `MAN-PLAY-ROLLOUT` | Planlı |
 
 NFR izlenebilirliği:
@@ -1967,7 +1994,7 @@ NFR izlenebilirliği:
 |---|---|---|
 | NFR-001–005 | `PERF-STARTUP-001`, `PERF-READER-001`, frame profiling | Cihaz/build/fixture içeren benchmark raporu |
 | NFR-006 | `E2E-A-LIFECYCLE-001` | Background/process death sonucu |
-| NFR-007 | `IT-BACKUP-ROUNDTRIP-001` | Alan alan fixture karşılaştırması |
+| NFR-007 | `IT-BACKUP-ROUNDTRIP-001`, `IT-BACKUP-LARGE-001` | Alan alan ve çok-kitaplı fixture karşılaştırması |
 | NFR-008 | Crashlytics release metriği | Kanal ve sürüm bazlı crash-free session |
 | NFR-009 | `E2E-W-OFFLINE-001`, `E2E-A-OFFLINE-001` | Ağ kapalı test sonucu |
 | NFR-010 | `E2E-W-A11Y-001`, `MAN-A11Y-I18N` | Klavye/screen reader raporu |
@@ -2014,7 +2041,8 @@ bu tabloda test kimliği dosya yoluna bağlanmalıdır.
   import, reader yüzeyleri ve E2E kapsamı hâlâ eksiktir.
 - Web hata izleme katmanı yoktur.
 - Android ve web release süreçleri birlikte sürümlenmemektedir.
-- Backup işlemi büyük kitaplıklarda belleği zorlayabilir.
+- Backup nihai ZIP Blob'unu JSZip nedeniyle bellekte üretmeye devam eder; eager
+  kitap ArrayBuffer kopyası ve EPUB/PDF yeniden sıkıştırması kaldırılmıştır.
 - Kullanıcı tercihleri backup'a dahil değildir; bunun ürün kararı mı eksik mi olduğu
   netleştirilmelidir.
 
@@ -2043,20 +2071,20 @@ bu tabloda test kimliği dosya yoluna bağlanmalıdır.
 
 | ID | Sorun | Etki | Önem | Geçici çözüm | Durum/sahip | Hedef |
 |---|---|---|---|---|---|---|
-| ISS-001 | Gerçek otomatik ürün testleri yoktu | Regresyon ve veri kaybı geç fark edilirdi | Kritik | 21 Vitest + 3 Playwright senaryosu ve CI kapısı eklendi | Temel çözüldü / maintainer; kapsam sürekli genişletilmeli | Faz A |
+| ISS-001 | Gerçek otomatik ürün testleri yoktu | Regresyon ve veri kaybı geç fark edilirdi | Kritik | 35 Vitest + 3 Playwright senaryosu ve CI kapısı eklendi | Temel çözüldü / maintainer; kapsam sürekli genişletilmeli | Faz A |
 | ISS-002 | Web `0.1.0`, Android `1.0` | Yayın ve migration takibi belirsiz | Yüksek | Sürümleri elle karşılaştır | Açık / maintainer | Faz A |
 | ISS-003 | Production manifest cleartext trafiğe izin veriyor | Güvenlik yüzeyi genişler | Yüksek | Yalnız güvenilir ağ/dev kullanım | Açık / Android | Faz A |
 | ISS-004 | PDF görsel vurgu overlay'i yok | Kullanıcı alıntıyı sayfada renkli göremez | Orta | NotesPanel'den sayfaya git | Kabul edilmiş / reader | Gelecek değerlendirme |
 | ISS-005 | Biyometrik pasif kod/bağımlılık kalıntıları | Bakım ve yanlış etkinleştirme riski | Orta | Root render kapalı | Açık / cleanup | Faz A |
 | ISS-006 | `<html lang>` aktif locale ile senkron değil | Screen reader/SEO dili yanlış olabilir | Orta | Uygulama içi metin yine çevrilir | Açık / web | Faz A |
 | ISS-007 | PWA manifest/service worker yok | Web kurulumu ve offline app shell yok | Yüksek | Manifest, sürümlü service worker ve app-shell eklendi | Çözüldü / web; `E2E-W-PWA-001` geçti | Faz C |
-| ISS-008 | Büyük dosya bütçeleri gerçek cihazda ölçülmedi | OOM, uzun bekleme, process death riski | Yüksek | PDF canvas lazy rendering, belge yeniden kullanımı, EPUB yoğunluk politikası ve 120 sayfalık web regresyonu | Kısmi / performance; Android baseline'ı açık | Faz B |
+| ISS-008 | Büyük dosya bütçeleri gerçek cihazda ölçülmedi | OOM, uzun bekleme, process death riski | Yüksek | PDF canvas lazy rendering, belge yeniden kullanımı, EPUB yoğunluk politikası, iptal/ilerlemeli arama ve 120 sayfalık web regresyonu | Kısmi / performance; Android baseline'ı açık | Faz B |
 | ISS-009 | Kullanıcı tercihleri ZIP backup'a dahil değil | Cihaz geçişinde ayarlar kaybolur | Orta | Tercihleri yeniden ayarla | Karar gerekli / data | Faz A |
 | ISS-010 | Web için merkezi hata izleme yok | Web production sorunları görünmez | Orta | Tarayıcı console ve kullanıcı raporu | Açık / web | Faz A/C |
 | ISS-011 | Landscape/foldable matrisi eksik | Bazı cihazlarda layout kırılabilir | Orta | Portre kullanım | Açık / QA | Faz A |
 | ISS-012 | EPUB iframe Google Fonts isteği yapabilir | Tam offline font deneyimi garanti değil | Orta | Sistem/fallback font | Açık / PWA | Faz C |
 | ISS-013 | Release keystore/AAB hattı yok | Play Store production yayını yapılamaz | Kritik | Debug/internal artifact | Açık / release | Faz D |
-| ISS-014 | Backup ZIP işlemi bellekte çalışır | Büyük kitaplıkta OOM/uzun bloklama | Yüksek | Küçük yedek, işlemi bölmeme | Açık / performance | Faz B |
+| ISS-014 | Backup nihai ZIP üretimi JSZip ile bellekte çalışır | Büyük kitaplıkta OOM/uzun bloklama | Yüksek | Blob girdisi, EPUB/PDF `STORE`, aşama ilerlemesi/iptal, CRC ve eksik arşiv ön doğrulaması eklendi | Kısmi / performance; gerçek streaming/worker ve cihaz baseline'ı açık | Faz B |
 | ISS-015 | Tarayıcı destek matrisi otomatik değil | Web regresyonu geç fark edilir | Orta | Manuel Chrome kontrolü | Açık / QA | Faz A/C |
 | ISS-016 | Kitap metadata'sı var fakat file Blob yoksa veya bootstrap reddedilirse reader sonsuz spinner'da kalabilir | Kullanıcı kitabı açamaz ve nedenini göremez | Yüksek | `ReaderView` artık ayrı hata gösterip kütüphaneye dönüş sunuyor | Çözüldü / reader; `IT-READER-LOAD-001` geçti | Faz A |
 | ISS-017 | Production audit başlangıçta `epubjs`/`xmldom` ve Next.js PostCSS/Sharp zincirlerinde 5 bulgu veriyordu | Kötü amaçlı belge veya build girdisi güvenlik/DoS riski oluşturabilir | Yüksek | `xmldom 0.8.13` ve `sharp 0.35.3` override; gerçek EPUB/build testleri; untrusted CSS build'e alınmıyor | Kısmi azaltıldı / production 2 bulgu; Next PostCSS upstream bekliyor, dev araç zinciri ayrı izleniyor | Faz A |
@@ -2182,9 +2210,10 @@ Amaç: Düşük ve orta seviye cihazlarda büyük EPUB/PDF dosyalarını güveni
 - [x] PDF açık belge nesnesini arama ve metin erişiminde yeniden kullanma.
 - [x] EPUB konum üretimini erteleme ve dosya boyutuna uyarlama.
 - [x] 120 sayfalık sentetik PDF için Chromium lazy-render regresyon testi.
-- [ ] İptal edilebilir, ilerleme gösteren arama.
+- [x] İptal edilebilir, debounce ve ilerleme gösteren EPUB/PDF araması.
 - [ ] Worker/streaming tabanlı ağır işlemler.
-- [ ] Backup/restore bellek optimizasyonu.
+- [x] Backup/restore Blob kopyası, yeniden sıkıştırma, doğrulama, ilerleme ve iptal optimizasyonu.
+- [ ] Nihai ZIP üretimi için gerçek streaming/worker alternatifi.
 - [ ] Kapak decode/cache optimizasyonu.
 - [ ] WebView process death sonrası güvenli geri dönüş.
 - [ ] **RM-B-01:** Küçük/orta/büyük fixture sınıflarında cold/warm start, import,
@@ -2325,9 +2354,19 @@ Plan:
   çakışma çözümü) henüz yok — ikinci bir cihazda giriş yapmak bugün boş bir
   kütüphaneyle karşılaşmak demektir. Bilinçli olarak sonraya bırakıldı (bkz.
   “Faz 2 kapsam kararı”: önce push tek başına doğrulanacak).
-- [ ] Push şu an yalnızca **sign-in anında bir kerelik** çalışıyor —
-  sonradan eklenen kitap/highlight/ayar değişikliği otomatik push edilmiyor
-  (her mutasyon noktasına bağlamak ayrı bir adım).
+- [x] **Her mutasyon noktasına bağlandı**: `lib/storage.ts`'teki
+  `addBook`/`updateBook`/`deleteBook`/`setProgress`/`addHighlight`/
+  `updateHighlight`/`deleteHighlight`/`addBookmark`/`deleteBookmark`
+  fonksiyonlarının hepsi, yerel IndexedDB yazması bittikten sonra
+  `lib/cloud-sync.ts`'teki ilgili `push*`/`delete*Remote` fonksiyonunu arka
+  planda (`void import("./cloud-sync").then(...).catch(console.error)`)
+  çağırıyor — dairesel import'tan kaçınmak için dinamik import kullanıldı.
+  Ayarlar için `AuthHandler.tsx`, `useSettingsStore`'u 800ms debounce ile
+  dinleyip `pushSettingsSnapshot()` çağırıyor (slider sürüklerken her tik'te
+  yazma olmasın diye). Hepsi `currentUid()` üzerinden signed-out durumda
+  sessizce no-op oluyor — misafir modu ve offline kullanım hiç etkilenmiyor.
+  **Henüz telefonda uçtan uca test edilmedi** (yalnızca `tsc`/`build`/`cap
+  sync` ile doğrulandı).
 - [ ] Firestore offline persistence ile yerel yazma kuyruğunun birlikte çalışma
   modelini doğrulama.
 - [ ] Drive uygulama klasörü oluşturma ve dosya yükleme.
@@ -2895,6 +2934,8 @@ güvenli biçimde ulaşmayı sağlamaktır.
 | `1.5` | 2026-07-30 | `05cda45` + çalışma ağacı | Vitest/jsdom test altyapısı, 6 senaryolu IT-READER-LOAD-001, `npm run check`, Web Quality CI ve ilk doğrulanmış test sonuç panosu eklendi; RM-A-01 devam ediyor durumuna alındı; production audit bulguları ISS-017 olarak kaydedildi. |
 | `1.6` | 2026-07-30 | `05cda45` + çalışma ağacı | IndexedDB, backup, import, EPUB ve i18n testleri; Playwright reader E2E; PWA manifest/service worker/offline testi; Web Quality E2E kapısı ve bağımlılık güvenlik azaltımları eklendi. RM-A-01 tamamlandı, ISS-007 uygulandı, ISS-017 kısmen azaltıldı. |
 | `1.7` | 2026-07-30 | `05cda45` + çalışma ağacı | Büyük kitap performansı ilk dilimi tamamlandı: sürekli PDF canvas/text layer lazy rendering, yakın sayfalarla sınırlı scroll ölçümü, açık PDF belgesini yeniden kullanma, EPUB konum üretimini erteleme/seyrekleştirme ve 120 sayfalık Chromium regresyonu eklendi. Test panosu 21 Vitest + 3 Playwright olarak güncellendi; gerçek cihaz benchmark'ı açık bırakıldı. |
+| `1.8` | 2026-07-30 | `05cda45` + çalışma ağacı | Büyük kitap araması 250 ms debounce, yeni sorgu/panel kapanışında iptal, bölüm/sayfa ilerlemesi, dört birimde bir event-loop yield ve 50 sonuç sınırıyla yenilendi. EPUB unload ve PDF belge yeniden kullanımı regresyonları ile 120 sayfalık gerçek Chromium araması doğrulandı; pano 29 Vitest + 3 Playwright oldu. |
+| `1.9` | 2026-07-30 | `05cda45` + çalışma ağacı | Backup/restore performans ve güvenlik dilimi tamamlandı: tarayıcı Blob girdisi, EPUB/PDF `STORE`, streamFiles, aşama ilerlemesi, UI iptali, CRC/manifest/metadata/zorunlu dosya ön doğrulaması ve kısmi arşiv koruması eklendi. 3 MiB çok-kitaplı round-trip dahil pano 35 Vitest + 3 Playwright oldu; JSZip nihai çıktı belleği ve gerçek cihaz baseline'ı açık bırakıldı. |
 
 ### Changelog kuralı
 

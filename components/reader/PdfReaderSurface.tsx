@@ -6,6 +6,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Columns, Minus, Plus, ScrollText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { shouldRenderPdfPage } from "@/lib/reader-performance";
+import {
+  SEARCH_RESULT_LIMIT,
+  SEARCH_YIELD_INTERVAL,
+  throwIfSearchAborted,
+  yieldSearchControl,
+} from "@/lib/search-control";
 import type { PageTurnAnimationLevel } from "@/lib/types";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { ReaderProgressInfo, ReaderSurfaceHandle, SearchResult, SelectionPayload } from "./types";
@@ -220,29 +226,44 @@ export const PdfReaderSurface = forwardRef<ReaderSurfaceHandle, PdfReaderSurface
         // still saved (page + excerpt), just not painted on the page.
       },
       removeHighlight: () => {},
-      search: async (query: string) => {
+      search: async (query, options) => {
         const trimmed = query.trim().toLowerCase();
         if (!trimmed) return [];
         const results: SearchResult[] = [];
+        throwIfSearchAborted(options?.signal);
         const existingDoc = pdfDocumentRef.current;
         const doc =
           existingDoc ??
           (await pdfjs.getDocument({ data: await memoFile.arrayBuffer() }).promise);
         try {
-          for (let i = 1; i <= doc.numPages && results.length < 50; i++) {
+          for (
+            let i = 1;
+            i <= doc.numPages && results.length < SEARCH_RESULT_LIMIT;
+            i++
+          ) {
+            throwIfSearchAborted(options?.signal);
             const page = await doc.getPage(i);
             const content = await page.getTextContent();
+            throwIfSearchAborted(options?.signal);
             const text = content.items
               .map((item) => ("str" in item ? item.str : ""))
               .join(" ");
             const lower = text.toLowerCase();
             let idx = lower.indexOf(trimmed);
-            while (idx !== -1 && results.length < 50) {
+            while (idx !== -1 && results.length < SEARCH_RESULT_LIMIT) {
               const start = Math.max(0, idx - 40);
               const end = Math.min(text.length, idx + trimmed.length + 40);
               const excerpt = `${start > 0 ? "…" : ""}${text.slice(start, end)}${end < text.length ? "…" : ""}`;
               results.push({ location: `page:${i}`, excerpt });
               idx = lower.indexOf(trimmed, idx + trimmed.length);
+            }
+            options?.onProgress?.({
+              completed: i,
+              total: doc.numPages,
+              resultCount: results.length,
+            });
+            if (i % SEARCH_YIELD_INTERVAL === 0) {
+              await yieldSearchControl(options?.signal);
             }
           }
         } finally {

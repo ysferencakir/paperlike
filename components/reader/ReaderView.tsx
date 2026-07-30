@@ -472,8 +472,11 @@ export function ReaderView({ bookId }: { bookId: string }) {
     setBookmarks((prev) => prev.filter((b) => b.id !== id));
   };
 
-  const handleSearch = (query: string): Promise<SearchResult[]> =>
-    surfaceRef.current?.search(query) ?? Promise.resolve([]);
+  const handleSearch = (
+    query: string,
+    options?: Parameters<ReaderSurfaceHandle["search"]>[1]
+  ): Promise<SearchResult[]> =>
+    surfaceRef.current?.search(query, options) ?? Promise.resolve([]);
 
   const goToLocation = (location: string) => surfaceRef.current?.goToLocation(location);
 

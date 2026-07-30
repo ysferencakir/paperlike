@@ -90,6 +90,7 @@ export async function addBook(
     await tx.objectStore("covers").put({ bookId: book.id, blob: coverBlob });
   }
   await tx.done;
+  void import("./cloud-sync").then((m) => m.pushBook(book)).catch(console.error);
 }
 
 export async function getAllBooks(): Promise<Book[]> {
@@ -124,6 +125,7 @@ export async function updateBook(
   if (!existing) return undefined;
   const updated = { ...existing, ...patch };
   await db.put("books", updated);
+  void import("./cloud-sync").then((m) => m.pushBook(updated)).catch(console.error);
   return updated;
 }
 
@@ -137,13 +139,22 @@ export async function deleteBook(bookId: string): Promise<void> {
   await tx.objectStore("files").delete(bookId);
   await tx.objectStore("covers").delete(bookId);
   await tx.objectStore("progress").delete(bookId);
-  for (const h of await tx.objectStore("highlights").index("by-book").getAllKeys(bookId)) {
+  const highlightIds = (
+    await tx.objectStore("highlights").index("by-book").getAllKeys(bookId)
+  ) as string[];
+  for (const h of highlightIds) {
     await tx.objectStore("highlights").delete(h);
   }
-  for (const b of await tx.objectStore("bookmarks").index("by-book").getAllKeys(bookId)) {
+  const bookmarkIds = (
+    await tx.objectStore("bookmarks").index("by-book").getAllKeys(bookId)
+  ) as string[];
+  for (const b of bookmarkIds) {
     await tx.objectStore("bookmarks").delete(b);
   }
   await tx.done;
+  void import("./cloud-sync")
+    .then((m) => m.deleteBookRemote(bookId, highlightIds, bookmarkIds))
+    .catch(console.error);
 }
 
 export async function getProgress(
@@ -156,11 +167,13 @@ export async function getProgress(
 export async function setProgress(progress: ReadingProgress): Promise<void> {
   const db = await getDB();
   await db.put("progress", progress);
+  void import("./cloud-sync").then((m) => m.pushProgress(progress)).catch(console.error);
 }
 
 export async function addHighlight(highlight: Highlight): Promise<void> {
   const db = await getDB();
   await db.put("highlights", highlight);
+  void import("./cloud-sync").then((m) => m.pushHighlight(highlight)).catch(console.error);
 }
 
 export async function getHighlights(bookId: string): Promise<Highlight[]> {
@@ -178,17 +191,25 @@ export async function updateHighlight(
   if (!existing) return undefined;
   const updated = { ...existing, ...patch };
   await db.put("highlights", updated);
+  void import("./cloud-sync").then((m) => m.pushHighlight(updated)).catch(console.error);
   return updated;
 }
 
 export async function deleteHighlight(id: string): Promise<void> {
   const db = await getDB();
+  const existing = await db.get("highlights", id);
   await db.delete("highlights", id);
+  if (existing) {
+    void import("./cloud-sync")
+      .then((m) => m.deleteHighlightRemote(existing.bookId, id))
+      .catch(console.error);
+  }
 }
 
 export async function addBookmark(bookmark: Bookmark): Promise<void> {
   const db = await getDB();
   await db.put("bookmarks", bookmark);
+  void import("./cloud-sync").then((m) => m.pushBookmark(bookmark)).catch(console.error);
 }
 
 export async function getBookmarks(bookId: string): Promise<Bookmark[]> {
@@ -199,7 +220,13 @@ export async function getBookmarks(bookId: string): Promise<Bookmark[]> {
 
 export async function deleteBookmark(id: string): Promise<void> {
   const db = await getDB();
+  const existing = await db.get("bookmarks", id);
   await db.delete("bookmarks", id);
+  if (existing) {
+    void import("./cloud-sync")
+      .then((m) => m.deleteBookmarkRemote(existing.bookId, id))
+      .catch(console.error);
+  }
 }
 
 function localDateKey(date: Date): string {

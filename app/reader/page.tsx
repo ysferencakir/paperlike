@@ -7,7 +7,7 @@ import { ReaderView } from "@/components/reader/ReaderView";
 function ReaderPageContent() {
   const searchParams = useSearchParams();
   const bookId = searchParams.get("bookId") ?? "";
-  return <ReaderView bookId={bookId} />;
+  return <ReaderView key={bookId} bookId={bookId} />;
 }
 
 export default function ReaderPage() {

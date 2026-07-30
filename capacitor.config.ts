@@ -17,6 +17,12 @@ const config: CapacitorConfig = {
   appId: 'com.ysferencakir.paperlike',
   appName: 'Paperlike',
   webDir: 'out',
+  plugins: {
+    FirebaseAuthentication: {
+      skipNativeAuth: false,
+      providers: ['google.com'],
+    },
+  },
   ...(isDev && devIp
     ? {
         server: {

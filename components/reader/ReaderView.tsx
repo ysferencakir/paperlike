@@ -27,15 +27,10 @@ import {
   addReadingMinutes,
   deleteBookmark,
   deleteHighlight,
-  getBook,
-  getBookFile,
-  getBookmarks,
-  getHighlights,
-  getProgress,
   setProgress,
   updateHighlight,
 } from "@/lib/storage";
-import type { Book, Bookmark, Highlight, ImportanceLevel } from "@/lib/types";
+import type { Bookmark, Highlight, ImportanceLevel } from "@/lib/types";
 import { resolveColors, resolveTheme } from "@/lib/reader-theme";
 import {
   syncStatusBar,
@@ -71,6 +66,7 @@ import type {
   TocEntry,
 } from "./types";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { useReaderBootstrap } from "./useReaderBootstrap";
 
 // Screens at least this wide get a two-page spread automatically (unless the
 // user has manually touched the column toggle — see columnsAutoManaged).
@@ -112,12 +108,10 @@ export function ReaderView({ bookId }: { bookId: string }) {
   const [notesOpen, setNotesOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [toc, setToc] = useState<TocEntry[]>([]);
-  const [highlights, setHighlights] = useState<Highlight[]>([]);
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const { bootstrap, highlights, setHighlights, bookmarks, setBookmarks } =
+    useReaderBootstrap(bookId);
+  const loadedBook = bootstrap.status === "ready" ? bootstrap.book : null;
   const [pendingSelection, setPendingSelection] = useState<SelectionPayload | null>(null);
-  const [book, setBook] = useState<Book | null | undefined>(undefined);
-  const [file, setFile] = useState<Blob | null>(null);
-  const [initialLocation, setInitialLocation] = useState<string | undefined>();
   const [surfaceError, setSurfaceError] = useState<string | null>(null);
   const [introDone, setIntroDone] = useState(false);
   const [ttsPlaying, setTtsPlaying] = useState(false);
@@ -130,31 +124,6 @@ export function ReaderView({ bookId }: { bookId: string }) {
 
   const surfaceRef = useRef<ReaderSurfaceHandle>(null);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setToc([]);
-      setPendingSelection(null);
-      setIntroDone(false);
-      const [b, f, p, h, bm] = await Promise.all([
-        getBook(bookId),
-        getBookFile(bookId),
-        getProgress(bookId),
-        getHighlights(bookId),
-        getBookmarks(bookId),
-      ]);
-      if (cancelled) return;
-      setBook(b ?? null);
-      setFile(f ?? null);
-      setHighlights(h);
-      setBookmarks(bm);
-      if (p?.location) setInitialLocation(p.location);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [bookId]);
 
   // Stop any in-progress read-aloud when leaving this book (route change or unmount).
   useEffect(() => {
@@ -346,14 +315,16 @@ export function ReaderView({ bookId }: { bookId: string }) {
   // Keeps the app icon's "Continue reading" shortcut pointed at whichever
   // book was opened most recently.
   useEffect(() => {
-    if (book) void setContinueReadingShortcut(bookId, book.title, t);
-  }, [bookId, book, t]);
+    if (loadedBook) void setContinueReadingShortcut(bookId, loadedBook.title, t);
+  }, [bookId, loadedBook, t]);
 
   // Keeps the home-screen "continue reading" widget in sync with the book
   // and page currently being read.
   useEffect(() => {
-    if (book) void updateContinueReadingWidget(bookId, book.title, progress.percentage);
-  }, [bookId, book, progress.percentage]);
+    if (loadedBook) {
+      void updateContinueReadingWidget(bookId, loadedBook.title, progress.percentage);
+    }
+  }, [bookId, loadedBook, progress.percentage]);
 
   // Tint the status bar to match whatever the reader itself is showing —
   // otherwise it stays whatever color the library screen last set it to.
@@ -488,7 +459,7 @@ export function ReaderView({ bookId }: { bookId: string }) {
         progress.label ||
         (progress.page
           ? t("reader.pageLabel", { page: progress.page })
-          : book?.title ?? t("reader.locationFallback")),
+          : loadedBook?.title ?? t("reader.locationFallback")),
       createdAt: Date.now(),
     };
     await addBookmark(bookmark);
@@ -506,7 +477,7 @@ export function ReaderView({ bookId }: { bookId: string }) {
 
   const goToLocation = (location: string) => surfaceRef.current?.goToLocation(location);
 
-  if (book === null) {
+  if (bootstrap.status === "notFound") {
     return (
       <div className="flex h-dvh w-full flex-col items-center justify-center gap-3 bg-background text-center">
         <p className="text-sm text-muted-foreground">{t("reader.bookNotFound")}</p>
@@ -517,13 +488,44 @@ export function ReaderView({ bookId }: { bookId: string }) {
     );
   }
 
-  if (book === undefined || !file) {
+  if (bootstrap.status === "missingFile" || bootstrap.status === "loadError") {
     return (
-      <div className="flex h-dvh w-full items-center justify-center bg-background">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      <div className="flex h-dvh w-full flex-col items-center justify-center gap-3 bg-background px-6 text-center">
+        <AlertTriangle className="size-7 text-destructive" aria-hidden="true" />
+        <p className="max-w-sm text-sm text-muted-foreground">
+          {bootstrap.status === "missingFile" ? t("reader.fileMissing") : t("reader.loadError")}
+        </p>
+        <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/" />}>
+          {t("reader.backToLibrary")}
+        </Button>
       </div>
     );
   }
+
+  if (bootstrap.status === "loading") {
+    return (
+      <div className="flex h-dvh w-full items-center justify-center bg-background">
+        <Loader2
+          className="size-6 animate-spin text-muted-foreground"
+          aria-label={t("reader.loading")}
+        />
+      </div>
+    );
+  }
+
+  if (bootstrap.status !== "ready") {
+    return (
+      <div className="flex h-dvh w-full flex-col items-center justify-center gap-3 bg-background px-6 text-center">
+        <AlertTriangle className="size-7 text-destructive" aria-hidden="true" />
+        <p className="max-w-sm text-sm text-muted-foreground">{t("reader.loadError")}</p>
+        <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/" />}>
+          {t("reader.backToLibrary")}
+        </Button>
+      </div>
+    );
+  }
+
+  const { book, file, initialLocation } = bootstrap;
 
   const themeStyle =
     theme === "custom"

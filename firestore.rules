@@ -1,0 +1,24 @@
+rules_version = '2';
+
+// Paperlike Firestore security rules.
+//
+// Schema (see PROJECT_DOCUMENTATION.md § Faz F):
+//   users/{uid}                              — profile-level doc (currently unused, reserved)
+//   users/{uid}/books/{bookId}                — book metadata + progress
+//   users/{uid}/books/{bookId}/highlights/{id}
+//   users/{uid}/settings/{docId}
+//
+// A signed-in user may only ever read/write documents under their own
+// users/{uid} subtree — there is no cross-user sharing feature, so anything
+// broader would be an unused, unnecessary attack surface.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+  }
+}

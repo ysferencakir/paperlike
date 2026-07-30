@@ -49,6 +49,12 @@ interface VolumeKeyPlugin {
   ): Promise<{ remove: () => void }>;
 }
 
+// Registered once and cached — calling registerPlugin() again on every
+// invocation (this used to happen on every reader mount/settings toggle)
+// still works, but Capacitor logs a noisy "already registered" warning each
+// time.
+let volumeKeyPlugin: VolumeKeyPlugin | null = null;
+
 /**
  * Opts the hardware volume buttons into turning pages instead of changing
  * media volume, for as long as the caller wants (e.g. while the reader is
@@ -61,7 +67,8 @@ export async function enableVolumeKeyPageTurn(
 ): Promise<() => void> {
   const { Capacitor, registerPlugin } = await import("@capacitor/core");
   if (!Capacitor.isNativePlatform()) return () => {};
-  const plugin = registerPlugin<VolumeKeyPlugin>("VolumeKey");
+  if (!volumeKeyPlugin) volumeKeyPlugin = registerPlugin<VolumeKeyPlugin>("VolumeKey");
+  const plugin = volumeKeyPlugin;
   await plugin.setEnabled({ enabled: true });
   const listener = await plugin.addListener("volumeKey", (event) => onKey(event.direction));
   return () => {
@@ -162,6 +169,11 @@ export async function cancelBreakReminder(): Promise<void> {
   await LocalNotifications.cancel({ notifications: [{ id: BREAK_REMINDER_ID }] });
 }
 
+interface ShortcutsPlugin {
+  setContinueReading(options: { bookId: string; title: string }): Promise<void>;
+}
+let shortcutsPlugin: ShortcutsPlugin | null = null;
+
 /** Updates the app icon's "Continue reading <title>" long-press shortcut. */
 export async function setContinueReadingShortcut(
   bookId: string,
@@ -170,14 +182,17 @@ export async function setContinueReadingShortcut(
 ): Promise<void> {
   const { Capacitor, registerPlugin } = await import("@capacitor/core");
   if (!Capacitor.isNativePlatform()) return;
-  const plugin = registerPlugin<{
-    setContinueReading(options: { bookId: string; title: string }): Promise<void>;
-  }>("Shortcuts");
-  await plugin.setContinueReading({
+  if (!shortcutsPlugin) shortcutsPlugin = registerPlugin<ShortcutsPlugin>("Shortcuts");
+  await shortcutsPlugin.setContinueReading({
     bookId,
     title: t("native.continueReadingShortcut", { title }),
   });
 }
+
+interface WidgetPlugin {
+  updateProgress(options: { bookId: string; title: string; percentage: number }): Promise<void>;
+}
+let widgetPlugin: WidgetPlugin | null = null;
 
 /** Pushes the currently-open book/progress to the "continue reading" home-screen widget. */
 export async function updateContinueReadingWidget(
@@ -187,10 +202,8 @@ export async function updateContinueReadingWidget(
 ): Promise<void> {
   const { Capacitor, registerPlugin } = await import("@capacitor/core");
   if (!Capacitor.isNativePlatform()) return;
-  const plugin = registerPlugin<{
-    updateProgress(options: { bookId: string; title: string; percentage: number }): Promise<void>;
-  }>("Widget");
-  await plugin.updateProgress({ bookId, title, percentage: Math.round(percentage) });
+  if (!widgetPlugin) widgetPlugin = registerPlugin<WidgetPlugin>("Widget");
+  await widgetPlugin.updateProgress({ bookId, title, percentage: Math.round(percentage) });
 }
 
 function blobToBase64(blob: Blob): Promise<string> {

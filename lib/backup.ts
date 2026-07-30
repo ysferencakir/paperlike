@@ -36,9 +36,11 @@ export async function exportLibrary(): Promise<Blob> {
 
   for (const book of books) {
     const [file, cover] = await Promise.all([getBookFile(book.id), getBookCover(book.id)]);
-    if (file) zip.file(`files/${book.id}.${fileExtension(book.format)}`, file);
+    if (file) {
+      zip.file(`files/${book.id}.${fileExtension(book.format)}`, await file.arrayBuffer());
+    }
     if (cover) {
-      zip.file(`covers/${book.id}`, cover);
+      zip.file(`covers/${book.id}`, await cover.arrayBuffer());
       coverTypes[book.id] = cover.type || "image/jpeg";
     }
   }
@@ -58,7 +60,7 @@ export async function exportLibrary(): Promise<Blob> {
 /** Restores a .zip produced by exportLibrary(). Existing books with the same id are overwritten. */
 export async function importLibrary(zipBlob: Blob, t: Translate): Promise<{ bookCount: number }> {
   const { default: JSZip } = await import("jszip");
-  const zip = await JSZip.loadAsync(zipBlob);
+  const zip = await JSZip.loadAsync(await zipBlob.arrayBuffer());
   const manifestEntry = zip.file(MANIFEST_NAME);
   if (!manifestEntry) throw new Error(t("backupLib.invalidFile"));
 

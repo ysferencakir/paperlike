@@ -6,6 +6,7 @@ import { OpenFileHandler } from "@/components/OpenFileHandler";
 import { ShortcutHandler } from "@/components/ShortcutHandler";
 import { CrashReportingHandler } from "@/components/CrashReportingHandler";
 import { AuthHandler } from "@/components/AuthHandler";
+import { PwaRegistrar } from "@/components/PwaRegistrar";
 // import { BiometricLockGate } from "@/components/BiometricLockGate"; // see note below
 import "./globals.css";
 
@@ -28,8 +29,18 @@ const lora = Lora({ variable: "--font-lora", subsets: ["latin"], weight: "variab
 const garamond = EB_Garamond({ variable: "--font-garamond", subsets: ["latin"], weight: "variable" });
 
 export const metadata: Metadata = {
-  title: "Kütüphanem",
+  applicationName: "Paperlike",
+  title: "Paperlike — Kütüphanem",
   description: "E-ink hissiyatlı EPUB/PDF okuyucu",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Paperlike",
+  },
+  icons: {
+    icon: "/icons/paperlike.svg",
+  },
 };
 
 // viewportFit: "cover" is what makes env(safe-area-inset-*) return real
@@ -37,6 +48,7 @@ export const metadata: Metadata = {
 // notch/status bar/rounded corners with no way to detect it in CSS.
 export const viewport: Viewport = {
   viewportFit: "cover",
+  themeColor: "#fbfaf8",
 };
 
 export default function RootLayout({
@@ -56,6 +68,8 @@ export default function RootLayout({
         <OpenFileHandler />
         <ShortcutHandler />
         <CrashReportingHandler />
+        <AuthHandler />
+        <PwaRegistrar />
         {/* Disabled again — still locked the user out in practice even with
             the deviceIsSecure fallback + escape-hatch link. Not worth the
             risk for this app; leaving the code in place but off. */}

@@ -8,7 +8,7 @@ ile Android uygulamasına paketlenir. Kitaplar, ilerleme, notlar ve istatistikle
 öncelikle kullanıcının cihazında tutulur.
 
 > Proje prototip aşamasındadır. Temel okuma deneyimi geniştir; production
-> dağıtımı, otomatik test, büyük dosya performansı, PWA ve bulut senkronizasyonu
+> dağıtımı, büyük dosya performansı, PWA güncelleme UX'i ve bulut senkronizasyonu
 > hâlâ geliştirilmektedir.
 
 ## Ana dokümantasyon
@@ -58,6 +58,22 @@ stratejisi, bilinen sorunlar ve ayrıntılı yol haritası için:
 - Okumaya devam et kısayolu ve ana ekran widget'ı
 - Yerel bildirim ve Firebase Crashlytics
 
+### Web/PWA
+
+- Kurulabilir web app manifest ve bağımsız Paperlike ikonları
+- Sürümlü service worker app-shell cache'i
+- Kütüphane ve reader rotalarının çevrimdışı açılışı
+- PDF worker ve Next.js statik parçalarının önbelleğe alınması
+- Playwright ile gerçek Chromium offline testi
+
+### Büyük kitap performansı
+
+- Sürekli PDF modunda yalnızca ekrana yakın sayfaların canvas ve text layer'ları oluşturulur
+- Uzak PDF sayfaları düşük maliyetli yer tutucular olarak kalır ve yaklaştıkça yüklenir
+- PDF arama ve metin okuma, React-PDF'in zaten açtığı belge nesnesini yeniden kullanır
+- EPUB konum üretimi ilk sayfadan sonraya ertelenir ve dosya boyutuna göre seyrekleştirilir
+- 120 sayfalık sentetik PDF, gerçek Chromium E2E testinde en fazla 10 yakın render ile doğrulanır
+
 ## Platform durumu
 
 | Alan | Durum |
@@ -67,8 +83,8 @@ stratejisi, bilinen sorunlar ve ayrıntılı yol haritası için:
 | Web statik uygulaması | Mevcut prototip |
 | Türkçe/İngilizce | Mevcut |
 | Firebase/auth temeli | Geliştirme aşamasında |
-| PWA/offline app shell | Planlı |
-| Büyük kitap optimizasyonu | Planlı |
+| PWA/offline app shell | Mevcut; güncelleme/quota UX'i geliştirilmeli |
+| Büyük kitap optimizasyonu | Kısmi; PDF lazy rendering ve EPUB konum politikası mevcut |
 | Google Play production dağıtımı | Planlı |
 | Koleksiyonlar/etiketler | Planlı |
 | Bulut senkronizasyonu | Tasarlanmış, uygulanıyor |
@@ -82,6 +98,7 @@ stratejisi, bilinen sorunlar ve ayrıntılı yol haritası için:
 - `epub.js`, React-PDF/PDF.js
 - Capacitor 8 ve özel Android Java pluginleri
 - Firebase Crashlytics; Firebase Auth/Firestore altyapısı geliştirme aşamasında
+- Vitest, fake-indexeddb, React Testing Library ve Playwright
 
 ## Gereksinimler
 
@@ -109,6 +126,12 @@ Tarayıcıda `http://localhost:3000` adresini açın.
 | `npm run dev` | Web geliştirme sunucusu |
 | `npm run build` | Statik production export |
 | `npm run lint` | ESLint kontrolü |
+| `npm run type-check` | TypeScript kontrolü |
+| `npm test` | Otomatik testleri çalıştırır |
+| `npm run test:watch` | Testleri izleme modunda çalıştırır |
+| `npm run test:e2e` | Production build + Chromium E2E testleri |
+| `npm run test:e2e:ui` | Playwright görsel test arayüzü |
+| `npm run check` | Lint, type-check ve test kalite kapısı |
 | `npm run cap:sync` | Web build ve Android Capacitor sync |
 | `npm run android:open` | Android Studio'da projeyi açma |
 | `npm run android:dev` | LAN üzerinden Android canlı geliştirme |

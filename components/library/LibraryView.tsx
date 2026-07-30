@@ -32,6 +32,7 @@ import { ShelfView } from "./ShelfView";
 import { ReadingStatsPanel } from "./ReadingStatsPanel";
 import { CategoryDialog } from "./CategoryDialog";
 import { BackupMenu } from "./BackupMenu";
+import { AccountButton } from "./AccountButton";
 
 type SortOption = "recent" | "title" | "author";
 type FormatFilter = "all" | BookFormat;
@@ -108,6 +109,7 @@ export function LibraryView() {
           </div>
 
           <div className="flex items-center gap-1.5">
+            <AccountButton />
             <BackupMenu />
             {hasBooks && (
               <>

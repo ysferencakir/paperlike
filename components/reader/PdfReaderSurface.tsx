@@ -5,7 +5,9 @@ import { Document, Page, pdfjs } from "react-pdf";
 import { AnimatePresence, motion } from "framer-motion";
 import { Columns, Minus, Plus, ScrollText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { shouldRenderPdfPage } from "@/lib/reader-performance";
 import type { PageTurnAnimationLevel } from "@/lib/types";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { ReaderProgressInfo, ReaderSurfaceHandle, SearchResult, SelectionPayload } from "./types";
 import { PageCurlOverlay, PAGE_CURL_TOTAL_MS } from "./PageCurlOverlay";
 import { useTranslation } from "@/lib/i18n/useTranslation";
@@ -16,6 +18,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 const MIN_SCALE = 0.6;
 const MAX_SCALE = 2.4;
 const SCALE_STEP = 0.2;
+const PDF_PAGE_PLACEHOLDER_HEIGHT = 842;
 
 interface PdfReaderSurfaceProps {
   file: Blob;
@@ -81,10 +84,22 @@ export const PdfReaderSurface = forwardRef<ReaderSurfaceHandle, PdfReaderSurface
     }
     const scrollRef = useRef<HTMLDivElement>(null);
     const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+    const pageObserverRef = useRef<IntersectionObserver | null>(null);
+    const visiblePagesRef = useRef<ReadonlySet<number>>(new Set([initialPage]));
+    const scrollFrameRef = useRef<number | null>(null);
+    const pdfDocumentRef = useRef<PDFDocumentProxy | null>(null);
+    const [visiblePages, setVisiblePages] = useState<ReadonlySet<number>>(
+      () => new Set([initialPage])
+    );
+    const supportsPageObservation = typeof IntersectionObserver !== "undefined";
     const pointerDownPos = useRef<{ x: number; y: number } | null>(null);
     // react-pdf compares `file` by reference; memoize so the same Blob
     // doesn't trigger a full document reload on every parent re-render.
     const memoFile = useMemo(() => file, [file]);
+
+    useEffect(() => {
+      pdfDocumentRef.current = null;
+    }, [memoFile]);
 
     const triggerCurl = (turnDirection: "next" | "prev") => {
       if (pageTurnAnimation !== 2) return;
@@ -96,6 +111,8 @@ export const PdfReaderSurface = forwardRef<ReaderSurfaceHandle, PdfReaderSurface
     useEffect(() => {
       return () => {
         if (curlTimerRef.current) clearTimeout(curlTimerRef.current);
+        if (scrollFrameRef.current !== null) cancelAnimationFrame(scrollFrameRef.current);
+        pageObserverRef.current?.disconnect();
       };
     }, []);
 
@@ -105,9 +122,55 @@ export const PdfReaderSurface = forwardRef<ReaderSurfaceHandle, PdfReaderSurface
 
     const registerPageRef = (page: number) => (el: HTMLDivElement | null) => {
       const map = pageRefs.current;
-      if (el) map.set(page, el);
-      else map.delete(page);
+      const previous = map.get(page);
+      if (previous) pageObserverRef.current?.unobserve(previous);
+      if (el) {
+        el.dataset.page = String(page);
+        map.set(page, el);
+        pageObserverRef.current?.observe(el);
+      } else {
+        map.delete(page);
+      }
     };
+
+    useEffect(() => {
+      if (!continuous || !numPages || !scrollRef.current) {
+        pageObserverRef.current?.disconnect();
+        pageObserverRef.current = null;
+        return;
+      }
+
+      if (!supportsPageObservation) return;
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          setVisiblePages((current) => {
+            const next = new Set(current);
+            for (const entry of entries) {
+              const page = Number((entry.target as HTMLElement).dataset.page);
+              if (!page) continue;
+              if (entry.isIntersecting) next.add(page);
+              else next.delete(page);
+            }
+            visiblePagesRef.current = next;
+            return next;
+          });
+        },
+        {
+          root: scrollRef.current,
+          // Render roughly one-and-a-half viewports before a page reaches
+          // the screen, but release canvases once they are far away.
+          rootMargin: "150% 0px",
+        }
+      );
+
+      pageObserverRef.current = observer;
+      pageRefs.current.forEach((el) => observer.observe(el));
+      return () => {
+        observer.disconnect();
+        if (pageObserverRef.current === observer) pageObserverRef.current = null;
+      };
+    }, [continuous, numPages, supportsPageObservation]);
 
     useImperativeHandle(ref, () => ({
       next: () => {
@@ -161,33 +224,44 @@ export const PdfReaderSurface = forwardRef<ReaderSurfaceHandle, PdfReaderSurface
         const trimmed = query.trim().toLowerCase();
         if (!trimmed) return [];
         const results: SearchResult[] = [];
-        const doc = await pdfjs.getDocument({ data: await memoFile.arrayBuffer() }).promise;
-        for (let i = 1; i <= doc.numPages && results.length < 50; i++) {
-          const page = await doc.getPage(i);
-          const content = await page.getTextContent();
-          const text = content.items
-            .map((item) => ("str" in item ? item.str : ""))
-            .join(" ");
-          const lower = text.toLowerCase();
-          let idx = lower.indexOf(trimmed);
-          while (idx !== -1 && results.length < 50) {
-            const start = Math.max(0, idx - 40);
-            const end = Math.min(text.length, idx + trimmed.length + 40);
-            const excerpt = `${start > 0 ? "…" : ""}${text.slice(start, end)}${end < text.length ? "…" : ""}`;
-            results.push({ location: `page:${i}`, excerpt });
-            idx = lower.indexOf(trimmed, idx + trimmed.length);
+        const existingDoc = pdfDocumentRef.current;
+        const doc =
+          existingDoc ??
+          (await pdfjs.getDocument({ data: await memoFile.arrayBuffer() }).promise);
+        try {
+          for (let i = 1; i <= doc.numPages && results.length < 50; i++) {
+            const page = await doc.getPage(i);
+            const content = await page.getTextContent();
+            const text = content.items
+              .map((item) => ("str" in item ? item.str : ""))
+              .join(" ");
+            const lower = text.toLowerCase();
+            let idx = lower.indexOf(trimmed);
+            while (idx !== -1 && results.length < 50) {
+              const start = Math.max(0, idx - 40);
+              const end = Math.min(text.length, idx + trimmed.length + 40);
+              const excerpt = `${start > 0 ? "…" : ""}${text.slice(start, end)}${end < text.length ? "…" : ""}`;
+              results.push({ location: `page:${i}`, excerpt });
+              idx = lower.indexOf(trimmed, idx + trimmed.length);
+            }
           }
+        } finally {
+          if (!existingDoc) await doc.destroy();
         }
-        await doc.destroy();
         return results;
       },
       getCurrentText: async () => {
-        const doc = await pdfjs.getDocument({ data: await memoFile.arrayBuffer() }).promise;
-        const page = await doc.getPage(pageNumber);
-        const content = await page.getTextContent();
-        const text = content.items.map((item) => ("str" in item ? item.str : "")).join(" ");
-        await doc.destroy();
-        return text;
+        const existingDoc = pdfDocumentRef.current;
+        const doc =
+          existingDoc ??
+          (await pdfjs.getDocument({ data: await memoFile.arrayBuffer() }).promise);
+        try {
+          const page = await doc.getPage(pageNumber);
+          const content = await page.getTextContent();
+          return content.items.map((item) => ("str" in item ? item.str : "")).join(" ");
+        } finally {
+          if (!existingDoc) await doc.destroy();
+        }
       },
     }));
 
@@ -207,17 +281,24 @@ export const PdfReaderSurface = forwardRef<ReaderSurfaceHandle, PdfReaderSurface
     // scroll container so progress/page indicators stay accurate.
     const handleScroll = () => {
       if (!continuous || !scrollRef.current) return;
-      const containerTop = scrollRef.current.getBoundingClientRect().top;
-      let closest = pageNumber;
-      let closestDistance = Infinity;
-      for (const [page, el] of pageRefs.current) {
-        const distance = Math.abs(el.getBoundingClientRect().top - containerTop);
-        if (distance < closestDistance) {
-          closestDistance = distance;
-          closest = page;
+      if (scrollFrameRef.current !== null) return;
+      scrollFrameRef.current = requestAnimationFrame(() => {
+        scrollFrameRef.current = null;
+        if (!scrollRef.current) return;
+        const containerTop = scrollRef.current.getBoundingClientRect().top;
+        let closest = pageNumber;
+        let closestDistance = Infinity;
+        for (const page of visiblePagesRef.current) {
+          const el = pageRefs.current.get(page);
+          if (!el) continue;
+          const distance = Math.abs(el.getBoundingClientRect().top - containerTop);
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            closest = page;
+          }
         }
-      }
-      setPageNumber(closest);
+        setPageNumber(closest);
+      });
     };
 
     const zoomIn = () => setScale((s) => Math.min(MAX_SCALE, +(s + SCALE_STEP).toFixed(2)));
@@ -321,6 +402,7 @@ export const PdfReaderSurface = forwardRef<ReaderSurfaceHandle, PdfReaderSurface
             loading={null}
             onLoadError={(err) => onError?.(err)}
             onLoadSuccess={(doc) => {
+              pdfDocumentRef.current = doc;
               setNumPages(doc.numPages);
               setPageNumber((p) => Math.min(Math.max(1, p), doc.numPages));
             }}
@@ -328,14 +410,23 @@ export const PdfReaderSurface = forwardRef<ReaderSurfaceHandle, PdfReaderSurface
             {continuous
               ? numPages > 0 &&
                 Array.from({ length: numPages }, (_, i) => i + 1).map((page) => (
-                  <div key={page} ref={registerPageRef(page)}>
-                    <Page
-                      pageNumber={page}
-                      scale={scale}
-                      renderAnnotationLayer={false}
-                      renderTextLayer
-                      className="shadow-xl"
-                    />
+                  <div
+                    key={page}
+                    ref={registerPageRef(page)}
+                    data-pdf-page-slot={page}
+                    className="flex w-full justify-center"
+                    style={{ minHeight: Math.round(PDF_PAGE_PLACEHOLDER_HEIGHT * scale) }}
+                  >
+                    {(!supportsPageObservation ||
+                      shouldRenderPdfPage(page, pageNumber, visiblePages)) && (
+                      <Page
+                        pageNumber={page}
+                        scale={scale}
+                        renderAnnotationLayer={false}
+                        renderTextLayer
+                        className="shadow-xl"
+                      />
+                    )}
                   </div>
                 ))
               : pageTurnAnimation === 2

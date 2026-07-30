@@ -4,6 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import ePub from "epubjs";
 import type { Book as EpubBook, Contents, Location as EpubLocation, Rendition } from "epubjs";
 import type { ReaderSettings } from "@/lib/types";
+import { getEpubLocationBreak } from "@/lib/reader-performance";
 import type { ReaderProgressInfo, ReaderSurfaceHandle, SearchResult, SelectionPayload, TocEntry } from "./types";
 import { PageCurlOverlay, PAGE_CURL_TOTAL_MS } from "./PageCurlOverlay";
 import { useTranslation } from "@/lib/i18n/useTranslation";
@@ -155,6 +156,7 @@ export const EpubReaderSurface = forwardRef<ReaderSurfaceHandle, EpubReaderSurfa
     // reflow) when the margin actually changed.
     const appliedMarginRef = useRef<number | null>(null);
     const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const locationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [curl, setCurl] = useState<"next" | "prev" | null>(null);
     const curlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -411,14 +413,23 @@ export const EpubReaderSurface = forwardRef<ReaderSurfaceHandle, EpubReaderSurfa
           await rendition.display(initialLocation);
           stopWatchingWindowErrors();
 
-          // Generating locations lets epub.js compute an accurate reading
-          // percentage; it's not needed for the book to be readable, so it
-          // runs in the background and just refreshes progress once done.
-          book.locations.generate(1600).then(() => {
-            if (cancelled) return;
-            const current = rendition.location;
-            if (current) reportProgress(current);
-          });
+          // Generating locations is CPU-heavy on large books. Defer it until
+          // the first page is interactive and adapt the density so location
+          // density (and memory use) is controlled as file size grows.
+          locationTimerRef.current = setTimeout(() => {
+            locationTimerRef.current = null;
+            void book.locations
+              .generate(getEpubLocationBreak(file.size))
+              .then(() => {
+                if (cancelled) return;
+                const current = rendition.location;
+                if (current) reportProgress(current);
+              })
+              .catch(() => {
+                // Exact percentages are optional; reading remains available
+                // if a malformed spine prevents location generation.
+              });
+          }, 500);
         } catch (err) {
           reportOnce(err);
         }
@@ -428,6 +439,7 @@ export const EpubReaderSurface = forwardRef<ReaderSurfaceHandle, EpubReaderSurfa
         cancelled = true;
         stopWatchingWindowErrors();
         if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
+        if (locationTimerRef.current) clearTimeout(locationTimerRef.current);
         if (curlTimerRef.current) clearTimeout(curlTimerRef.current);
         renditionRef.current?.destroy();
         bookRef.current?.destroy();

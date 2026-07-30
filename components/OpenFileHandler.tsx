@@ -46,7 +46,9 @@ export function OpenFileHandler() {
   const router = useRouter();
   const { t } = useTranslation();
   const tRef = useRef(t);
-  tRef.current = t;
+  useEffect(() => {
+    tRef.current = t;
+  });
 
   useEffect(() => {
     let cancelled = false;

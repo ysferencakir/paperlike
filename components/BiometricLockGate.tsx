@@ -29,12 +29,17 @@ export function BiometricLockGate() {
   const [confirmingDisable, setConfirmingDisable] = useState(false);
   const isNativeRef = useRef(false);
 
+  // Adjusted during render (React's documented pattern for "reset state
+  // when a prop changes") rather than in an effect — locks/unlocks in the
+  // same commit the moment `enabled` flips, instead of one render later.
+  const [prevEnabled, setPrevEnabled] = useState(enabled);
+  if (enabled !== prevEnabled) {
+    setPrevEnabled(enabled);
+    setLocked(enabled);
+  }
+
   useEffect(() => {
-    if (!enabled) {
-      setLocked(false);
-      return;
-    }
-    setLocked(true);
+    if (!enabled) return;
 
     let appStateSub: { remove: () => void } | undefined;
     let cancelled = false;

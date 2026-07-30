@@ -5,6 +5,7 @@ import { BackButtonHandler } from "@/components/BackButtonHandler";
 import { OpenFileHandler } from "@/components/OpenFileHandler";
 import { ShortcutHandler } from "@/components/ShortcutHandler";
 import { CrashReportingHandler } from "@/components/CrashReportingHandler";
+import { AuthHandler } from "@/components/AuthHandler";
 // import { BiometricLockGate } from "@/components/BiometricLockGate"; // see note below
 import "./globals.css";
 

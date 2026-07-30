@@ -236,11 +236,13 @@ export function ReaderView({ bookId }: { bookId: string }) {
   };
 
   useEffect(() => {
-    resetIdleTimer();
+    // chromeVisible already starts true — this just arms the auto-hide
+    // timer for the initial mount, same as resetIdleTimer does, without
+    // redundantly calling setChromeVisible(true) synchronously in the effect.
+    idleTimer.current = setTimeout(() => setChromeVisible(false), 3200);
     return () => {
       if (idleTimer.current) clearTimeout(idleTimer.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const stopTts = () => {
@@ -380,9 +382,11 @@ export function ReaderView({ bookId }: { bookId: string }) {
   // read through a ref so this effect only has to re-run (re-registering
   // the native listener) when the setting itself changes, not on every render.
   const goNextRef = useRef(goNext);
-  goNextRef.current = goNext;
   const goPrevRef = useRef(goPrev);
-  goPrevRef.current = goPrev;
+  useEffect(() => {
+    goNextRef.current = goNext;
+    goPrevRef.current = goPrev;
+  });
   useEffect(() => {
     if (!settings.volumeKeyPageTurn) return;
     let cleanup: (() => void) | undefined;

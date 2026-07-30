@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated native project output — not source, and "build/**" above
+    // only matches a top-level dir, not android/app/build.
+    "android/**",
+    // Vendored, pre-minified worker script (pdf.js) — not our source.
+    "public/pdf.worker.min.mjs",
   ]),
 ]);
 

@@ -71,9 +71,14 @@ export const PdfReaderSurface = forwardRef<ReaderSurfaceHandle, PdfReaderSurface
     const [continuous, setContinuous] = useState(scrollMode ?? false);
     // Keeps this in sync if scrollMode is changed from the Settings panel
     // while the book is already open, not just via the toolbar button below.
-    useEffect(() => {
+    // Adjusted during render (React's documented pattern for "reset state
+    // when a prop changes") rather than in an effect, so it takes effect in
+    // the same commit instead of one render later.
+    const [prevScrollMode, setPrevScrollMode] = useState(scrollMode);
+    if (scrollMode !== prevScrollMode) {
+      setPrevScrollMode(scrollMode);
       if (scrollMode !== undefined) setContinuous(scrollMode);
-    }, [scrollMode]);
+    }
     const scrollRef = useRef<HTMLDivElement>(null);
     const pageRefs = useRef<Map<number, HTMLDivElement>>(new Map());
     const pointerDownPos = useRef<{ x: number; y: number } | null>(null);

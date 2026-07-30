@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { Book } from "@/lib/types";
 import { deleteBook, getAllBooks, updateBook } from "@/lib/storage";
+import { invalidateCoverCache } from "@/lib/cover-cache";
 
 interface LibraryState {
   books: Book[];
@@ -22,6 +23,7 @@ export const useLibraryStore = create<LibraryState>((set) => ({
   },
   removeBook: async (bookId: string) => {
     await deleteBook(bookId);
+    invalidateCoverCache(bookId);
     set((state) => ({ books: state.books.filter((b) => b.id !== bookId) }));
   },
   renameBook: async (bookId, patch) => {

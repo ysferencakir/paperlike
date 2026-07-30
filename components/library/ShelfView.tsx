@@ -5,8 +5,8 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import type { Book, ReadingProgress } from "@/lib/types";
 import { spineColorFor } from "@/lib/book-color";
-import { extractSpineColor } from "@/lib/extract-cover-color";
-import { getBookCover, getProgress } from "@/lib/storage";
+import { coverCache } from "@/lib/cover-cache";
+import { getProgress } from "@/lib/storage";
 import { formatBytes, formatRelativeDate } from "@/lib/utils";
 import { BookCover } from "./BookCover";
 import { BookActionsMenu } from "./BookActionsMenu";
@@ -161,9 +161,7 @@ function ShelfBook({ book }: { book: Book }) {
 
   useEffect(() => {
     let cancelled = false;
-    getBookCover(book.id).then(async (blob) => {
-      if (!blob || cancelled) return;
-      const color = await extractSpineColor(blob);
+    coverCache.getSpineColor(book.id).then((color) => {
       if (color && !cancelled) setSpineColor(color);
     });
     return () => {

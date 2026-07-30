@@ -77,6 +77,8 @@ stratejisi, bilinen sorunlar ve ayrıntılı yol haritası için:
 - 120 sayfalık sentetik PDF, gerçek Chromium E2E testinde en fazla 10 yakın render ile doğrulanır
 - Backup büyük EPUB/PDF girdilerini yeniden sıkıştırmadan ve tarayıcıda eager ArrayBuffer kopyası oluşturmadan ZIP'e ekler
 - Backup/restore aşama ilerlemesi, iptal düğmesi, CRC ve eksik dosya ön doğrulaması içerir
+- Kapaklar viewport'a 300 px yaklaşınca yüklenir ve en fazla 384×576 thumbnail olarak decode edilir
+- Ortak LRU cache 96 kayıt/32 MiB sınırı, eşzamanlı okuma birleştirme ve güvenli object URL tahliyesi kullanır
 
 ## Platform durumu
 
@@ -88,7 +90,7 @@ stratejisi, bilinen sorunlar ve ayrıntılı yol haritası için:
 | Türkçe/İngilizce | Mevcut |
 | Firebase/auth temeli | Geliştirme aşamasında |
 | PWA/offline app shell | Mevcut; güncelleme/quota UX'i geliştirilmeli |
-| Büyük kitap optimizasyonu | Kısmi; PDF lazy rendering, kontrollü arama ve backup/restore ilk optimizasyonu mevcut |
+| Büyük kitap optimizasyonu | Kısmi; PDF lazy rendering, kontrollü arama, backup/restore ve kapak LRU/thumbnail optimizasyonu mevcut |
 | Google Play production dağıtımı | Planlı |
 | Koleksiyonlar/etiketler | Planlı |
 | Bulut senkronizasyonu | Tasarlanmış, uygulanıyor |

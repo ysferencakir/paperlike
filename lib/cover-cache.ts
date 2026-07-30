@@ -8,6 +8,7 @@ export const COVER_CACHE_MAX_BYTES = 32 * 1024 * 1024;
 interface CacheEntry {
   bookId: string;
   blob: Blob | null;
+  loaded: boolean;
   bytes: number;
   refs: number;
   url?: string;
@@ -65,13 +66,13 @@ export class CoverCache {
       this.touch(existing);
       return existing;
     }
-    const entry: CacheEntry = { bookId, blob: null, bytes: 0, refs: 0 };
+    const entry: CacheEntry = { bookId, blob: null, loaded: false, bytes: 0, refs: 0 };
     this.entries.set(bookId, entry);
     return entry;
   }
 
   private async ensureBlob(entry: CacheEntry): Promise<Blob | undefined> {
-    if (entry.blob) return entry.blob;
+    if (entry.loaded) return entry.blob ?? undefined;
     if (entry.loadPromise) return entry.loadPromise;
 
     entry.loadPromise = this.load(entry.bookId)
@@ -80,6 +81,7 @@ export class CoverCache {
         entry.loadPromise = undefined;
         if (entry.invalidated) return blob;
         entry.blob = blob ?? null;
+        entry.loaded = true;
         entry.bytes = blob?.size ?? 0;
         this.totalBytes += entry.bytes;
         this.touch(entry);
@@ -130,11 +132,16 @@ export class CoverCache {
       const blob = await this.ensureBlob(entry);
       if (!blob || entry.invalidated) return null;
       if (entry.color !== undefined) return entry.color;
-      entry.colorPromise ??= extract(blob).then((color) => {
-        entry.color = color;
-        entry.colorPromise = undefined;
-        return color;
-      });
+      entry.colorPromise ??= extract(blob)
+        .then((color) => {
+          entry.color = color;
+          entry.colorPromise = undefined;
+          return color;
+        })
+        .catch((error) => {
+          entry.colorPromise = undefined;
+          throw error;
+        });
       return await entry.colorPromise;
     } finally {
       this.release(entry);
@@ -156,6 +163,7 @@ export class CoverCache {
       entry.url = undefined;
     }
     entry.blob = null;
+    entry.loaded = false;
     entry.bytes = 0;
   }
 

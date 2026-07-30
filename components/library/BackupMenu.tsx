@@ -23,6 +23,7 @@ import { useLibraryStore } from "@/store/useLibraryStore";
 import { useLocaleStore, type Locale } from "@/store/useLocaleStore";
 import { toast } from "@/store/useToastStore";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { clearCoverCache } from "@/lib/cover-cache";
 
 function backupFilename(): string {
   const d = new Date();
@@ -89,6 +90,7 @@ export function BackupMenu() {
         signal: controller.signal,
         onProgress: setProgress,
       });
+      clearCoverCache();
       await refresh();
       toast.success(
         bookCount === 1 ? t("backup.restoredOne") : t("backup.restoredMany", { count: bookCount })

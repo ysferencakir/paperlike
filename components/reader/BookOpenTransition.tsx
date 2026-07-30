@@ -83,7 +83,7 @@ export function BookOpenTransition({ book, onDone }: { book: Book; onDone: () =>
                 className="absolute inset-0 overflow-hidden rounded-r-md shadow-[0_24px_70px_rgba(0,0,0,0.65)]"
                 style={{ backfaceVisibility: "hidden" }}
               >
-                <BookCover book={book} />
+                <BookCover book={book} eager />
                 {/* Shadow sweeps out from the hinge (left) as it turns,
                     instead of darkening the whole face evenly. */}
                 <motion.div

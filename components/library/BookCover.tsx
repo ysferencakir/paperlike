@@ -72,9 +72,9 @@ export function BookCover({ book, eager = false }: { book: Book; eager?: boolean
   }, [book.id, eager]);
 
   if (src) {
-    // eslint-disable-next-line @next/next/no-img-element -- blob: URLs can't go through next/image's optimizer
     return (
       <div ref={containerRef} className="h-full w-full">
+        {/* eslint-disable-next-line @next/next/no-img-element -- blob: URLs can't go through next/image's optimizer */}
         <img
           src={src}
           alt={book.title}

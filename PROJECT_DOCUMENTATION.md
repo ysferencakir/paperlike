@@ -20,7 +20,7 @@
 | Android sürümü | `versionCode 1`, `versionName 1.0` |
 | Lisans | MIT |
 | Son kapsamlı güncelleme | 30 Temmuz 2026 |
-| Belge sürümü | `1.9` |
+| Belge sürümü | `1.10` |
 | Belge durumu | Aktif ana kaynak |
 | Belge sahibi | Proje sahibi/aktif maintainer |
 | Son doğrulanan branch | `main` |
@@ -61,7 +61,7 @@ sonraki dosya durumuna göre doğrulandığını açıkça söylemelidir.
 | Android sistem entegrasyonu | Mevcut | Intent, widget, shortcut, bildirim, TTS, immersive, Crashlytics |
 | Web ürünü | Mevcut PWA prototipi | Statik export, manifest, service worker ve offline app shell var; web deploy/güncelleme UX'i eksik |
 | Erişilebilirlik/i18n | Kısmi doğrulanmış | TR/EN ve TalkBack temeli var; tam otomasyon/matris yok |
-| Otomatik test | Aktif temel | 35 Vitest testi, 3 Playwright E2E senaryosu ve web CI kalite kapısı var; kapsam genişletilmeli |
+| Otomatik test | Aktif temel | 43 Vitest testi, 3 Playwright E2E senaryosu ve web CI kalite kapısı var; kapsam genişletilmeli |
 | Büyük kitap performansı | Kısmi | PDF lazy page rendering, belge yeniden kullanımı ve EPUB konum yoğunluğu politikası var; gerçek cihaz baseline'ı gerekli |
 | Google Play yayını | Planlı | AAB, imzalama, mağaza süreci ve in-app update eksik |
 | Bulut senkronizasyonu | Auth UI hazır, senkron yok | Firebase Console + giriş/kayıt ekranı tamam; Firestore kuralları, gerçek veri senkronu ve Drive yok |
@@ -224,7 +224,7 @@ hazır” sayılmaz.
 | PR-005 | Metni vurgulayıp not almak istiyorum. | Renk/önem/not saklanır; EPUB görsel vurgu gösterir; PDF açık biçimde sayfa+alıntı olarak saklar. | Mevcut/kısmi |
 | PR-006 | Yer imi ekleyip geri dönmek istiyorum. | Aynı kitapla ilişkilendirilir; bölüm/sayfa etiketi gösterilir; silinebilir ve konuma gider. | Mevcut |
 | PR-007 | Notlarımı dışa aktarmak istiyorum. | Word ve PDF çıktısı doğru kitap/not sırasını taşır; web indirir, Android paylaşır. | Mevcut |
-| PR-008 | Kitaplığımı yedekleyip geri yüklemek istiyorum. | Kitap, dosya, kapak, ilerleme, not, yer imi ve istatistik round trip ile korunur; bozuk/yeni format hata verir. | Mevcut, otomasyon eksik |
+| PR-008 | Kitaplığımı yedekleyip geri yüklemek istiyorum. | Kitap, dosya, kapak, ilerleme, not, yer imi ve istatistik round trip ile korunur; bozuk/yeni format hata verir. | Mevcut; round-trip, doğrulama, iptal ve büyük fixture otomasyonu var |
 | PR-009 | Kitaplığımı bulup düzenlemek istiyorum. | Arama, sıralama, biçim filtresi, görünüm ve basit kategori birlikte çalışır. | Mevcut |
 | PR-010 | Okuma süremi baskı hissetmeden izlemek istiyorum. | Yerel gün, son yedi gün, streak ve hedef doğru hesaplanır; metinler suçlayıcı değildir. | Mevcut |
 | PR-011 | İnternet olmadan okumak istiyorum. | Önceden eklenmiş yerel kitap ağ olmadan açılır; temel okuma/not/ilerleme çalışır. | PWA app shell mevcut; geniş offline matris planlı |
@@ -1461,6 +1461,19 @@ kapsar:
     önce doğrular; eksik dosyalı arşiv kısmi restore başlatmaz.
 12. `IT-BACKUP-LARGE-001`, altı adet 512 KiB ikili kitapla 3 MiB çok-kitaplı
     round-trip ve aşama sırasını doğrular.
+13. Kapaklar IntersectionObserver ile viewport'a 300 px yaklaşınca yüklenir;
+    uzaklaştığında aktif cache lease'i bırakılır.
+14. `CoverCache`, eşzamanlı IndexedDB isteklerini ve object URL üretimini tek
+    promise/kayıtta birleştirir; 96 kayıt ve 32 MiB ile sınırlı LRU uygular.
+15. Aktif URL cache invalidation sırasında hemen revoke edilmez; son lease
+    bırakıldığında temizlenerek ekrandaki görselin kırılması önlenir.
+16. Büyük kaynak kapaklar bir kez en fazla 384×576 WebP thumbnail'e çevrilir;
+    bitmap/canvas desteği yoksa kaynak Blob güvenli fallback olarak kullanılır.
+17. Raf cilt rengi aynı cached thumbnail Blob'undan bir kez çıkarılır; raf
+    görünümü artık kapak görselinden ayrı ikinci IndexedDB okuması yapmaz.
+18. Kitap silme tekil cache invalidation, restore ise toplu cache clear uygular.
+19. 200 kitaplık fixture cache'in 24 kayıtlık test bütçesini aşmadığını ve
+    tahliye edilen bütün object URL'lerin revoke edildiğini doğrular.
 
 ### 15.4 Kalan yaklaşım
 
@@ -1472,7 +1485,8 @@ kapsar:
 5. Import gibi kalan uzun işlemler ilerleme ve iptal desteği vermelidir.
 6. JSZip'in nihai arşivi bellekte üretme sınırı için streaming veya worker
    seçenekleri araştırılmalıdır.
-7. Kapaklar uygun boyuta küçültülmeli ve URL yaşam döngüleri temizlenmelidir.
+7. Thumbnail üretiminin gerçek Android cihazdaki decode süresi ve tepe belleği
+   ölçülmeli; gerekirse Web Worker/OffscreenCanvas değerlendirilmelidir.
 
 ---
 
@@ -1712,11 +1726,13 @@ senaryolarını temsil etmez.
 
 | Test/kapı | Kanıt | Son sonuç | Ortam | Baz | Tarih |
 |---|---|---|---|---|---|
-| Vitest toplamı | 13 test dosyası | **Geçti — 35/35** | Windows, Node `24.15.0`, jsdom/node/fake-indexeddb | `05cda45` + çalışma ağacı | 2026-07-30 |
+| Vitest toplamı | 15 test dosyası | **Geçti — 43/43** | Windows, Node `24.15.0`, jsdom/node/fake-indexeddb | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-READER-LOAD-001` | `components/reader/useReaderBootstrap.test.ts` | **Geçti — 6/6** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-STORAGE-001` | `lib/storage.test.ts` | **Geçti — 1/1** | Windows, fake-indexeddb | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-BACKUP-*` | `lib/backup.test.ts` | **Geçti — 7/7** | Windows, fake-indexeddb + 3 MiB binary fixture | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-BACKUP-UI-001` | `components/library/BackupMenu.test.tsx` | **Geçti — 1/1** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
+| `IT-COVER-CACHE-001` | `lib/cover-cache.test.ts` | **Geçti — 7/7** | Windows, Node; 200 kitaplık LRU fixture | `05cda45` + çalışma ağacı | 2026-07-30 |
+| `IT-COVER-VIEWPORT-001` | `components/library/BookCover.test.tsx` | **Geçti — 1/1** | Windows, jsdom + IntersectionObserver | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-IMPORT-001` | `lib/import-book.test.ts` | **Geçti — 4/4** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-EPUB-PARSE-001` | `lib/epub-loader.test.ts` | **Geçti — 1/1** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `UT-I18N-KEYS-001` | `lib/i18n/dictionaries.test.ts` | **Geçti — 1/1** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
@@ -2071,14 +2087,14 @@ bu tabloda test kimliği dosya yoluna bağlanmalıdır.
 
 | ID | Sorun | Etki | Önem | Geçici çözüm | Durum/sahip | Hedef |
 |---|---|---|---|---|---|---|
-| ISS-001 | Gerçek otomatik ürün testleri yoktu | Regresyon ve veri kaybı geç fark edilirdi | Kritik | 35 Vitest + 3 Playwright senaryosu ve CI kapısı eklendi | Temel çözüldü / maintainer; kapsam sürekli genişletilmeli | Faz A |
+| ISS-001 | Gerçek otomatik ürün testleri yoktu | Regresyon ve veri kaybı geç fark edilirdi | Kritik | 43 Vitest + 3 Playwright senaryosu ve CI kapısı eklendi | Temel çözüldü / maintainer; kapsam sürekli genişletilmeli | Faz A |
 | ISS-002 | Web `0.1.0`, Android `1.0` | Yayın ve migration takibi belirsiz | Yüksek | Sürümleri elle karşılaştır | Açık / maintainer | Faz A |
 | ISS-003 | Production manifest cleartext trafiğe izin veriyor | Güvenlik yüzeyi genişler | Yüksek | Yalnız güvenilir ağ/dev kullanım | Açık / Android | Faz A |
 | ISS-004 | PDF görsel vurgu overlay'i yok | Kullanıcı alıntıyı sayfada renkli göremez | Orta | NotesPanel'den sayfaya git | Kabul edilmiş / reader | Gelecek değerlendirme |
 | ISS-005 | Biyometrik pasif kod/bağımlılık kalıntıları | Bakım ve yanlış etkinleştirme riski | Orta | Root render kapalı | Açık / cleanup | Faz A |
 | ISS-006 | `<html lang>` aktif locale ile senkron değil | Screen reader/SEO dili yanlış olabilir | Orta | Uygulama içi metin yine çevrilir | Açık / web | Faz A |
 | ISS-007 | PWA manifest/service worker yok | Web kurulumu ve offline app shell yok | Yüksek | Manifest, sürümlü service worker ve app-shell eklendi | Çözüldü / web; `E2E-W-PWA-001` geçti | Faz C |
-| ISS-008 | Büyük dosya bütçeleri gerçek cihazda ölçülmedi | OOM, uzun bekleme, process death riski | Yüksek | PDF canvas lazy rendering, belge yeniden kullanımı, EPUB yoğunluk politikası, iptal/ilerlemeli arama ve 120 sayfalık web regresyonu | Kısmi / performance; Android baseline'ı açık | Faz B |
+| ISS-008 | Büyük dosya bütçeleri gerçek cihazda ölçülmedi | OOM, uzun bekleme, process death riski | Yüksek | PDF canvas lazy rendering, belge yeniden kullanımı, EPUB yoğunluk politikası, kontrollü arama, bounded kapak LRU/thumbnail ve 120 sayfalık web regresyonu | Kısmi / performance; Android baseline'ı açık | Faz B |
 | ISS-009 | Kullanıcı tercihleri ZIP backup'a dahil değil | Cihaz geçişinde ayarlar kaybolur | Orta | Tercihleri yeniden ayarla | Karar gerekli / data | Faz A |
 | ISS-010 | Web için merkezi hata izleme yok | Web production sorunları görünmez | Orta | Tarayıcı console ve kullanıcı raporu | Açık / web | Faz A/C |
 | ISS-011 | Landscape/foldable matrisi eksik | Bazı cihazlarda layout kırılabilir | Orta | Portre kullanım | Açık / QA | Faz A |
@@ -2214,7 +2230,7 @@ Amaç: Düşük ve orta seviye cihazlarda büyük EPUB/PDF dosyalarını güveni
 - [ ] Worker/streaming tabanlı ağır işlemler.
 - [x] Backup/restore Blob kopyası, yeniden sıkıştırma, doğrulama, ilerleme ve iptal optimizasyonu.
 - [ ] Nihai ZIP üretimi için gerçek streaming/worker alternatifi.
-- [ ] Kapak decode/cache optimizasyonu.
+- [x] Kapak lazy loading, thumbnail, bounded LRU, URL yaşam döngüsü ve invalidation optimizasyonu.
 - [ ] WebView process death sonrası güvenli geri dönüş.
 - [ ] **RM-B-01:** Küçük/orta/büyük fixture sınıflarında cold/warm start, import,
   EPUB/PDF first page, arama, backup, p50/p95, tepe bellek ve frame sürelerini
@@ -2936,6 +2952,7 @@ güvenli biçimde ulaşmayı sağlamaktır.
 | `1.7` | 2026-07-30 | `05cda45` + çalışma ağacı | Büyük kitap performansı ilk dilimi tamamlandı: sürekli PDF canvas/text layer lazy rendering, yakın sayfalarla sınırlı scroll ölçümü, açık PDF belgesini yeniden kullanma, EPUB konum üretimini erteleme/seyrekleştirme ve 120 sayfalık Chromium regresyonu eklendi. Test panosu 21 Vitest + 3 Playwright olarak güncellendi; gerçek cihaz benchmark'ı açık bırakıldı. |
 | `1.8` | 2026-07-30 | `05cda45` + çalışma ağacı | Büyük kitap araması 250 ms debounce, yeni sorgu/panel kapanışında iptal, bölüm/sayfa ilerlemesi, dört birimde bir event-loop yield ve 50 sonuç sınırıyla yenilendi. EPUB unload ve PDF belge yeniden kullanımı regresyonları ile 120 sayfalık gerçek Chromium araması doğrulandı; pano 29 Vitest + 3 Playwright oldu. |
 | `1.9` | 2026-07-30 | `05cda45` + çalışma ağacı | Backup/restore performans ve güvenlik dilimi tamamlandı: tarayıcı Blob girdisi, EPUB/PDF `STORE`, streamFiles, aşama ilerlemesi, UI iptali, CRC/manifest/metadata/zorunlu dosya ön doğrulaması ve kısmi arşiv koruması eklendi. 3 MiB çok-kitaplı round-trip dahil pano 35 Vitest + 3 Playwright oldu; JSZip nihai çıktı belleği ve gerçek cihaz baseline'ı açık bırakıldı. |
+| `1.10` | 2026-07-30 | `05cda45` + çalışma ağacı | Kapak performans dilimi tamamlandı: 300 px viewport lazy loading, 384×576 thumbnail, 96 kayıt/32 MiB bounded LRU, eşzamanlı IndexedDB/URL dedupe, lease tabanlı revoke, raf rengi reuse ve silme/restore invalidation eklendi. 200 kitaplık fixture ve viewport testiyle pano 43 Vitest + 3 Playwright oldu. |
 
 ### Changelog kuralı
 

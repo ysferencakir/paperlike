@@ -16,6 +16,7 @@ import {
   getBookmarks,
   getHighlights,
   getProgress,
+  getSyncTombstones,
   saveBookFile,
   setProgress,
   updateBook,
@@ -24,7 +25,9 @@ import {
   upsertBookmarkLocal,
   upsertHighlightLocal,
   upsertProgressLocal,
+  upsertSyncTombstone,
 } from "./storage";
+import { createSyncTombstone } from "./sync-tombstones";
 
 describe("IT-STORAGE-001 IndexedDB reader data", () => {
   it("persists, updates, queries, and deletes a complete book record", async () => {
@@ -73,7 +76,9 @@ describe("IT-STORAGE-001 IndexedDB reader data", () => {
     expect((await getBookCover(id))?.type).toBe("image/png");
     expect(await getProgress(id)).toEqual(progress);
     expect(await getHighlights(id)).toEqual([{ ...highlight, updatedAt: expect.any(Number) }]);
-    expect(await getBookmarks(id)).toEqual([bookmark]);
+    expect(await getBookmarks(id)).toEqual([
+      { ...bookmark, updatedAt: expect.any(Number) },
+    ]);
 
     expect(await updateBook(id, { title: "Updated Storage Test" })).toMatchObject({
       id,
@@ -151,5 +156,19 @@ describe("IT-STORAGE-002 pull-sync local-only writers", () => {
     expect(await (await getBookFile(id))?.text()).toBe("late file");
 
     await deleteBook(id);
+  });
+});
+
+describe("IT-STORAGE-003 durable sync tombstones", () => {
+  it("keeps the newest deletion marker isolated to its account", async () => {
+    const bookId = `tombstone-${crypto.randomUUID()}`;
+    const older = createSyncTombstone("alice", "book", bookId, undefined, 10);
+    const newer = createSyncTombstone("alice", "book", bookId, undefined, 20);
+
+    await upsertSyncTombstone(newer);
+    await upsertSyncTombstone(older);
+
+    expect(await getSyncTombstones("alice")).toContainEqual(newer);
+    expect(await getSyncTombstones("bob")).not.toContainEqual(newer);
   });
 });

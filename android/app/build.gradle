@@ -2,6 +2,15 @@ apply plugin: 'com.android.application'
 
 def packageMetadata = new groovy.json.JsonSlurper().parse(rootProject.file('../package.json'))
 
+// Release signing is opt-in via environment variables (see
+// PROJECT_DOCUMENTATION.md § 16.7) so the keystore file and its passwords
+// never need to enter source control or this build script. Building
+// `assembleRelease`/`bundleRelease` without these set still works exactly as
+// before (unsigned output) — this only activates once a maintainer has
+// generated their own keystore and exported the four PAPERLIKE_* variables.
+def releaseKeystorePath = System.getenv("PAPERLIKE_KEYSTORE_PATH")
+def hasReleaseSigning = releaseKeystorePath != null && file(releaseKeystorePath).exists()
+
 android {
     namespace = "com.ysferencakir.paperlike"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -18,6 +27,16 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(releaseKeystorePath)
+                storePassword System.getenv("PAPERLIKE_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("PAPERLIKE_KEY_ALIAS")
+                keyPassword System.getenv("PAPERLIKE_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         benchmark {
             initWith release
@@ -28,6 +47,9 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

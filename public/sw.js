@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "paperlike-shell-";
-const CACHE_VERSION = `${CACHE_PREFIX}v3`;
+const CACHE_VERSION = `${CACHE_PREFIX}v4`;
 const STAGING_CACHE = `${CACHE_VERSION}-staging`;
 const APP_SHELL = [
   "/",
@@ -9,6 +9,24 @@ const APP_SHELL = [
   "/pdf.worker.min.mjs",
   "/icons/paperlike.svg",
   "/icons/paperlike-maskable.svg",
+  // Self-hosted reader-surface fonts (see EpubReaderSurface.tsx / ISS-012) —
+  // not referenced by "/" or "/reader"'s own markup (they're only injected
+  // into a book's iframe at runtime), so cachePageAndAssets() below can't
+  // discover them by crawling those pages' HTML; they have to be listed
+  // explicitly to actually work offline.
+  "/fonts/reader-fonts.css",
+  "/fonts/literata-normal-latin.woff2",
+  "/fonts/literata-normal-latin-ext.woff2",
+  "/fonts/literata-italic-latin.woff2",
+  "/fonts/literata-italic-latin-ext.woff2",
+  "/fonts/lora-normal-latin.woff2",
+  "/fonts/lora-normal-latin-ext.woff2",
+  "/fonts/lora-italic-latin.woff2",
+  "/fonts/lora-italic-latin-ext.woff2",
+  "/fonts/eb-garamond-normal-latin.woff2",
+  "/fonts/eb-garamond-normal-latin-ext.woff2",
+  "/fonts/eb-garamond-italic-latin.woff2",
+  "/fonts/eb-garamond-italic-latin-ext.woff2",
 ];
 
 async function cachePageAndAssets(cache, path) {

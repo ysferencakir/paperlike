@@ -79,7 +79,10 @@ describe("IT-BACKUP-ROUNDTRIP-001 library backup", () => {
     expect((await getBookCover(id))?.type).toBe("image/webp");
     expect(await getProgress(id)).toEqual(progress);
     expect(await getHighlights(id)).toContainEqual({ ...highlight, updatedAt: expect.any(Number) });
-    expect(await getBookmarks(id)).toContainEqual(bookmark);
+    expect(await getBookmarks(id)).toContainEqual({
+      ...bookmark,
+      updatedAt: expect.any(Number),
+    });
 
     await deleteBook(id);
   });

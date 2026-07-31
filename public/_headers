@@ -1,0 +1,11 @@
+# Netlify / Cloudflare Pages static-header convention. Applied automatically
+# on those hosts once deployed; ignored elsewhere. Source of truth for the
+# CSP string is lib/security-headers.ts — lib/security-headers.test.ts
+# asserts this file's Content-Security-Policy line stays byte-identical to
+# that constant, so an edit to one without the other fails CI.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com https://oauth2.googleapis.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()

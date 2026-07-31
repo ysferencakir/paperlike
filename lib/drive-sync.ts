@@ -202,6 +202,55 @@ async function getOrCreateAppFolder(token: string): Promise<string> {
 }
 
 /**
+ * Permanently deletes every app-created "Paperlike" folder visible through
+ * the drive.file grant. Deleting a Drive folder also deletes its children.
+ * The operation is idempotent: no matching folder and already-deleted
+ * folders both count as success.
+ */
+export async function deleteAppFolderFromDrive(
+  { requiresAccessToken = false }: { requiresAccessToken?: boolean } = {}
+): Promise<void> {
+  const token = await getDriveAccessToken();
+  if (!token) {
+    if (requiresAccessToken) {
+      throw new DriveSyncError(
+        "permission_denied",
+        "Drive account deletion requires a valid Google access token"
+      );
+    }
+    return;
+  }
+
+  const query = encodeURIComponent(
+    `mimeType='application/vnd.google-apps.folder' and name='${APP_FOLDER_NAME}' and trashed=false`
+  );
+  let pageToken: string | undefined;
+  do {
+    const tokenParam = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "";
+    const searchRes = await driveRequest(
+      "Drive folder search",
+      `${DRIVE_FILES_URL}?q=${query}&pageSize=100&fields=nextPageToken,files(id)${tokenParam}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const page = (await searchRes.json()) as {
+      files?: { id: string }[];
+      nextPageToken?: string;
+    };
+
+    for (const folder of page.files ?? []) {
+      await driveRequest(
+        "Drive folder delete",
+        `${DRIVE_FILES_URL}/${folder.id}`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+        [404]
+      );
+    }
+    pageToken = page.nextPageToken;
+  } while (pageToken);
+  cachedFolderId = null;
+}
+
+/**
  * Thrown for a resumable-upload failure that means the session itself is
  * unusable (expired, or Drive rejected it outright) — the caller should
  * discard the persisted session and start a brand new upload attempt next

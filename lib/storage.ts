@@ -8,10 +8,11 @@ import type {
   Highlight,
   ReadingProgress,
   ReadingStatDay,
+  SyncTombstone,
 } from "./types";
 
 const DB_NAME = "epub-reader";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 interface ReaderDB extends DBSchema {
   books: {
@@ -49,6 +50,11 @@ interface ReaderDB extends DBSchema {
     key: string;
     value: DriveUploadSession;
   };
+  syncTombstones: {
+    key: string;
+    value: SyncTombstone;
+    indexes: { "by-uid": string };
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<ReaderDB>> | null = null;
@@ -78,6 +84,10 @@ function getDB() {
         }
         if (oldVersion < 4) {
           db.createObjectStore("driveUploadSessions", { keyPath: "bookId" });
+        }
+        if (oldVersion < 5) {
+          const tombstones = db.createObjectStore("syncTombstones", { keyPath: "id" });
+          tombstones.createIndex("by-uid", "uid");
         }
       },
     });
@@ -195,7 +205,9 @@ export async function updateBook(
   return updated;
 }
 
-export async function deleteBook(bookId: string): Promise<void> {
+export async function deleteBookLocal(
+  bookId: string
+): Promise<{ highlightIds: string[]; bookmarkIds: string[] }> {
   const db = await getDB();
   const tx = db.transaction(
     ["books", "files", "covers", "progress", "highlights", "bookmarks", "driveUploadSessions"],
@@ -219,8 +231,13 @@ export async function deleteBook(bookId: string): Promise<void> {
     await tx.objectStore("bookmarks").delete(b);
   }
   await tx.done;
-  void import("./cloud-sync")
-    .then((m) => m.deleteBookRemote(bookId, highlightIds, bookmarkIds))
+  return { highlightIds, bookmarkIds };
+}
+
+export async function deleteBook(bookId: string): Promise<void> {
+  await deleteBookLocal(bookId);
+  await import("./cloud-sync")
+    .then((m) => m.deleteBookRemote(bookId))
     .catch(console.error);
 }
 
@@ -262,6 +279,11 @@ export async function getHighlights(bookId: string): Promise<Highlight[]> {
   return all.sort((a, b) => a.createdAt - b.createdAt);
 }
 
+export async function getHighlight(id: string): Promise<Highlight | undefined> {
+  const db = await getDB();
+  return db.get("highlights", id);
+}
+
 export async function updateHighlight(
   id: string,
   patch: Partial<Pick<Highlight, "note" | "color" | "importance">>
@@ -275,12 +297,17 @@ export async function updateHighlight(
   return updated;
 }
 
-export async function deleteHighlight(id: string): Promise<void> {
+export async function deleteHighlightLocal(id: string): Promise<Highlight | undefined> {
   const db = await getDB();
   const existing = await db.get("highlights", id);
   await db.delete("highlights", id);
+  return existing;
+}
+
+export async function deleteHighlight(id: string): Promise<void> {
+  const existing = await deleteHighlightLocal(id);
   if (existing) {
-    void import("./cloud-sync")
+    await import("./cloud-sync")
       .then((m) => m.deleteHighlightRemote(existing.bookId, id))
       .catch(console.error);
   }
@@ -288,8 +315,9 @@ export async function deleteHighlight(id: string): Promise<void> {
 
 export async function addBookmark(bookmark: Bookmark): Promise<void> {
   const db = await getDB();
-  await db.put("bookmarks", bookmark);
-  void import("./cloud-sync").then((m) => m.pushBookmark(bookmark)).catch(console.error);
+  const stamped: Bookmark = { ...bookmark, updatedAt: Date.now() };
+  await db.put("bookmarks", stamped);
+  void import("./cloud-sync").then((m) => m.pushBookmark(stamped)).catch(console.error);
 }
 
 /**
@@ -308,15 +336,42 @@ export async function getBookmarks(bookId: string): Promise<Bookmark[]> {
   return all.sort((a, b) => a.createdAt - b.createdAt);
 }
 
-export async function deleteBookmark(id: string): Promise<void> {
+export async function getBookmark(id: string): Promise<Bookmark | undefined> {
+  const db = await getDB();
+  return db.get("bookmarks", id);
+}
+
+export async function deleteBookmarkLocal(id: string): Promise<Bookmark | undefined> {
   const db = await getDB();
   const existing = await db.get("bookmarks", id);
   await db.delete("bookmarks", id);
+  return existing;
+}
+
+export async function deleteBookmark(id: string): Promise<void> {
+  const existing = await deleteBookmarkLocal(id);
   if (existing) {
-    void import("./cloud-sync")
+    await import("./cloud-sync")
       .then((m) => m.deleteBookmarkRemote(existing.bookId, id))
       .catch(console.error);
   }
+}
+
+export async function upsertSyncTombstone(tombstone: SyncTombstone): Promise<void> {
+  const db = await getDB();
+  const existing = await db.get("syncTombstones", tombstone.id);
+  if (!existing || existing.deletedAt <= tombstone.deletedAt) {
+    await db.put("syncTombstones", {
+      ...existing,
+      ...tombstone,
+      driveFileId: tombstone.driveFileId ?? existing?.driveFileId,
+    });
+  }
+}
+
+export async function getSyncTombstones(uid: string): Promise<SyncTombstone[]> {
+  const db = await getDB();
+  return db.getAllFromIndex("syncTombstones", "by-uid", uid);
 }
 
 function localDateKey(date: Date): string {
@@ -379,4 +434,23 @@ export async function getRecentReadingStats(days: number): Promise<ReadingStatDa
     result.push({ date, minutes: byDate.get(date) ?? 0 });
   }
   return result;
+}
+
+/** Clears every IndexedDB store while keeping the database ready for guest use. */
+export async function clearLocalLibraryData(): Promise<void> {
+  const db = await getDB();
+  const stores = [
+    "books",
+    "files",
+    "covers",
+    "progress",
+    "highlights",
+    "bookmarks",
+    "readingStats",
+    "driveUploadSessions",
+    "syncTombstones",
+  ] as const;
+  const tx = db.transaction(stores, "readwrite");
+  await Promise.all(stores.map((store) => tx.objectStore(store).clear()));
+  await tx.done;
 }

@@ -8,6 +8,7 @@ import { CrashReportingHandler } from "@/components/CrashReportingHandler";
 import { AuthHandler } from "@/components/AuthHandler";
 import { PwaRegistrar } from "@/components/PwaRegistrar";
 import { DocumentLocaleSync } from "@/components/DocumentLocaleSync";
+import { CONTENT_SECURITY_POLICY } from "@/lib/security-headers";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -61,6 +62,14 @@ export default function RootLayout({
       lang="tr"
       className={`${geistSans.variable} ${geistMono.variable} ${literata.variable} ${lora.variable} ${garamond.variable} h-full antialiased`}
     >
+      <head>
+        {/* Static export has no server to send a real CSP response header
+            from (see lib/security-headers.ts) — this meta tag is the
+            baseline that works on any static host. `frame-ancestors` and
+            the other response-only headers still need public/_headers or
+            vercel.json wired up once a host is chosen. */}
+        <meta httpEquiv="Content-Security-Policy" content={CONTENT_SECURITY_POLICY} />
+      </head>
       <body className="min-h-full flex flex-col">
         {children}
         <Toaster />

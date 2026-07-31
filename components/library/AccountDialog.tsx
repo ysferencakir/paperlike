@@ -13,8 +13,15 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import {
+  AccountDeletionError,
+  deleteAccountAndData,
+  getAccountReauthenticationKind,
+} from "@/lib/account-deletion";
+import { CrashReportingConsent } from "./CrashReportingConsent";
 
 type Mode = "signIn" | "signUp";
+type DeleteStep = "closed" | "scope" | "final";
 
 function authErrorMessage(err: unknown, t: ReturnType<typeof useTranslation>["t"]): string {
   const code = err instanceof Error && "code" in err ? String((err as { code: unknown }).code) : "";
@@ -47,14 +54,21 @@ export function AccountDialog({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deleteStep, setDeleteStep] = useState<DeleteStep>("closed");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteLocalData, setDeleteLocalData] = useState(false);
 
   const resetForm = () => {
     setMode("signIn");
     setEmail("");
     setPassword("");
+    setDeleteStep("closed");
+    setDeletePassword("");
+    setDeleteLocalData(false);
   };
 
   const handleOpenChange = (value: boolean) => {
+    if (!value && busy) return;
     if (!value) resetForm();
     onOpenChange(value);
   };
@@ -110,15 +124,144 @@ export function AccountDialog({
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    const reauthenticationKind = getAccountReauthenticationKind(user);
+    setBusy(true);
+    try {
+      const result = await deleteAccountAndData({
+        user,
+        reauthentication:
+          reauthenticationKind === "google"
+            ? { kind: "google" }
+            : { kind: "password", password: deletePassword },
+        deleteLocalData,
+      });
+
+      if (result.localDataRequested && !result.localDataDeleted) {
+        toast.error(t("account.deletePartialLocal"));
+      } else {
+        toast.success(
+          result.localDataDeleted
+            ? t("account.deleteSuccessWithLocal")
+            : t("account.deleteSuccessKeepLocal")
+        );
+      }
+      handleOpenChange(false);
+    } catch (err) {
+      if (err instanceof AccountDeletionError) {
+        toast.error(t(`account.deleteError.${err.stage}`));
+      } else {
+        toast.error(t("account.deleteError.generic"));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reauthenticationKind = user ? getAccountReauthenticationKind(user) : "password";
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent showCloseButton>
-        {user ? (
+        {user && deleteStep === "scope" ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>{t("account.deleteTitle")}</DialogTitle>
+              <DialogDescription>{t("account.deleteScopeDescription")}</DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-3 text-sm">
+              <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-muted-foreground">
+                {t("account.deleteRemoteWarning")}
+              </p>
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3">
+                <input
+                  type="checkbox"
+                  checked={deleteLocalData}
+                  onChange={(event) => setDeleteLocalData(event.target.checked)}
+                  className="mt-0.5 size-4 accent-destructive"
+                />
+                <span>
+                  <span className="block font-medium text-foreground">
+                    {t("account.deleteLocalLabel")}
+                  </span>
+                  <span className="mt-1 block text-xs text-muted-foreground">
+                    {t("account.deleteLocalDescription")}
+                  </span>
+                </span>
+              </label>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteStep("closed")} disabled={busy}>
+                {t("common.cancel")}
+              </Button>
+              <Button variant="destructive" onClick={() => setDeleteStep("final")} disabled={busy}>
+                {t("account.deleteContinue")}
+              </Button>
+            </DialogFooter>
+          </>
+        ) : user && deleteStep === "final" ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>{t("account.deleteFinalTitle")}</DialogTitle>
+              <DialogDescription>
+                {reauthenticationKind === "google"
+                  ? t("account.deleteGoogleReauth")
+                  : t("account.deletePasswordReauth")}
+              </DialogDescription>
+            </DialogHeader>
+            {reauthenticationKind === "password" && (
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {t("account.passwordLabel")}
+                </span>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={deletePassword}
+                  onChange={(event) => setDeletePassword(event.target.value)}
+                  className="h-9 rounded-lg border border-border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                />
+              </label>
+            )}
+            <p className="text-xs text-muted-foreground">{t("account.deleteFinalWarning")}</p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDeleteStep("scope")} disabled={busy}>
+                {t("account.deleteBack")}
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => void handleDeleteAccount()}
+                disabled={
+                  busy || (reauthenticationKind === "password" && !deletePassword.trim())
+                }
+              >
+                {busy ? t("account.deleting") : t("account.deleteConfirm")}
+              </Button>
+            </DialogFooter>
+          </>
+        ) : user ? (
           <>
             <DialogHeader>
               <DialogTitle>{t("account.signedInTitle")}</DialogTitle>
               <DialogDescription>{user.email ?? user.displayName ?? ""}</DialogDescription>
             </DialogHeader>
+            <div className="rounded-lg border border-destructive/30 p-3">
+              <p className="text-sm font-medium text-destructive">{t("account.deleteTitle")}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t("account.deleteEntryDescription")}
+              </p>
+              <Button
+                className="mt-3"
+                size="sm"
+                variant="destructive"
+                onClick={() => setDeleteStep("scope")}
+                disabled={busy}
+              >
+                {t("account.deleteEntry")}
+              </Button>
+            </div>
+            <CrashReportingConsent />
             <DialogFooter>
               <Button variant="outline" onClick={() => handleOpenChange(false)}>
                 {t("common.cancel")}
@@ -181,6 +324,7 @@ export function AccountDialog({
                 </button>
               )}
             </div>
+            <CrashReportingConsent />
 
             <DialogFooter className="flex-col items-stretch gap-2 sm:flex-col">
               <Button

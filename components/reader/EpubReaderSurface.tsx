@@ -29,11 +29,21 @@ const FONT_STACK: Record<ReaderSettings["fontFamily"], string> = {
 };
 
 // The iframe epub.js renders content into is a separate document — it can't
-// see fonts loaded via next/font/google in the parent page — so it loads
-// the same three book-typesetting families itself straight from Google
-// Fonts, exactly like any other web page would.
-const GOOGLE_FONTS_HREF =
-  "https://fonts.googleapis.com/css2?family=EB+Garamond:ital@0;1&family=Literata:ital,opsz@0,7..72;1,7..72&family=Lora:ital@0;1&display=swap";
+// see fonts loaded via next/font/google in the parent page — so it loads the
+// same three book-typesetting families itself. These used to come from a
+// live https://fonts.googleapis.com request (ISS-012: broke the offline/PWA
+// promise, and leaked reading activity + IP to Google on every book open).
+// public/fonts/reader-fonts.css is a self-hosted mirror — the exact latin +
+// latin-ext @font-face subsets Google Fonts serves for these three families
+// (see the generation note in that file's directory), fetched once at build
+// time instead of on every read. An absolute (not root-relative) URL is used
+// because epub.js may render a section via a `blob:`-sourced iframe document,
+// whose own base URL a root-relative path can't reliably resolve against —
+// only the parent page's own origin, which `window.location.origin` gives
+// regardless of how the section iframe was created.
+function readerFontsHref(): string {
+  return `${window.location.origin}/fonts/reader-fonts.css`;
+}
 
 interface EpubReaderSurfaceProps {
   file: Blob;
@@ -292,7 +302,7 @@ export const EpubReaderSurface = forwardRef<ReaderSurfaceHandle, EpubReaderSurfa
             const link = doc.createElement("link");
             link.id = "paperlike-fonts";
             link.rel = "stylesheet";
-            link.href = GOOGLE_FONTS_HREF;
+            link.href = readerFontsHref();
             doc.head?.appendChild(link);
           });
 

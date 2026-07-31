@@ -7,7 +7,7 @@ import {
   signOut as firebaseSignOut,
 } from "firebase/auth";
 import { pullLibrarySnapshot, pushLibrarySnapshot } from "@/lib/cloud-sync";
-import { getFirebaseAuth, setFirebaseIsNativePlatform } from "@/lib/firebase";
+import { getFirebaseAuth } from "@/lib/firebase";
 import { DRIVE_SIGNIN_SCOPES, cacheDriveAccessToken, clearDriveAccessToken } from "@/lib/drive-sync";
 
 // @capacitor-firebase/authentication signs the user in on the *native*
@@ -59,7 +59,7 @@ interface AuthState {
   signOut: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>()((set) => ({
+export const useAuthStore = create<AuthState>()(() => ({
   user: null,
   initialized: false,
 

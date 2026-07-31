@@ -20,13 +20,13 @@
 | Android sürümü | `versionCode 1`, `versionName 0.1.0` (`package.json` kaynaklı) |
 | Lisans | MIT |
 | Son kapsamlı güncelleme | 31 Temmuz 2026 |
-| Belge sürümü | `1.26` |
+| Belge sürümü | `1.32` |
 | Belge durumu | Aktif ana kaynak |
 | Belge sahibi | Proje sahibi/aktif maintainer |
 | Son doğrulanan branch | `main` |
-| Son doğrulanan baz commit | `797a2e5` |
-| Doğrulama kapsamı | Baz commit + Drive/Firestore pull-sync, ekran/erişilebilirlik, veri yaşam döngüsü, dependency/risk/threat ve privacy envanteri çalışma ağacı |
-| Kod grafiği | Graphify — 28.625 node, 71.242 edge, 799 community; ayrıntı `graphify-out/GRAPH_REPORT.md` |
+| Son doğrulanan baz commit | `5279ac3` |
+| Doğrulama kapsamı | Baz commit + Drive/Firestore pull-sync, hesap/uzak veri silme, ekran/erişilebilirlik, veri yaşam döngüsü, dependency/risk/threat ve privacy envanteri çalışma ağacı |
+| Kod grafiği | Graphify — 28.738 node, 71.459 edge, 805 community; ayrıntı `graphify-out/GRAPH_REPORT.md` |
 
 > **Sürüm notu:** Web ve Android `versionName` için tek kaynak `package.json`
 > değeridir. Play yayını öncesinde `versionCode` otomasyonu ayrıca tamamlanmalıdır.
@@ -61,10 +61,10 @@ sonraki dosya durumuna göre doğrulandığını açıkça söylemelidir.
 | Android sistem entegrasyonu | Mevcut | Intent, widget, shortcut, bildirim, TTS, immersive, Crashlytics |
 | Web ürünü | Mevcut PWA prototipi | Statik export, manifest, offline app shell, kullanıcı onaylı cache güncellemesi, install yönlendirmesi ve quota/persistence UX'i var |
 | Erişilebilirlik/i18n | Web temeli doğrulanmış | TR/EN, belge dili, Axe WCAG A/AA, klavye/focus ve 320px reflow geçti; TalkBack/font ölçeği/reader matrisi açık |
-| Otomatik test | Aktif | `npm run check` geçti: 25 dosyada 79 Vitest + 2 Node; ayrıca 5 core + 5 uyumluluk + 8 responsive + 10 görsel + 4 erişilebilirlik Playwright senaryosu geçti |
+| Otomatik test | Aktif | `npm run check` geçti: 33 dosyada 100 Vitest + 2 Node; ayrıca 5 core + 5 uyumluluk + 8 responsive + 10 görsel + 4 erişilebilirlik Playwright senaryosu geçti |
 | Büyük kitap performansı | Kısmi | PDF lazy page rendering, belge yeniden kullanımı ve EPUB konum yoğunluğu politikası var; gerçek cihaz baseline'ı gerekli |
 | Google Play yayını | Planlı | AAB, imzalama, mağaza süreci ve in-app update eksik |
-| Bulut senkronizasyonu | İki yönlü/kısmi | Auth, Firestore push/pull, Drive upload/silme ve eksik dosyanın tembel indirilmesi mevcut; tombstone, genel retry/outbox ve alan bazlı çatışma çözümü eksik |
+| Bulut senkronizasyonu | İki yönlü/kısmi | Auth, Firestore push/pull, hesap-scoped kitap/vurgu/yer imi tombstone'u, Drive upload/silme ve tembel indirme mevcut; genel retry/outbox, tombstone TTL/ack ve alan bazlı çatışma çözümü eksik |
 | Koleksiyonlar/etiketler | Planlı | Bugün yalnızca tek serbest metin kategorisi var |
 | iOS | Planlı | `ios/` projesi henüz yok |
 
@@ -99,8 +99,8 @@ tahminidir. Her sürüm planında test kanıtlarıyla yeniden değerlendirilmeli
 
 1. Yeni kalite kapılarını GitHub Actions'ta ilk remote run ile doğrulamak.
 2. Release signing, `versionCode` ve AAB politikasını karara bağlamak.
-3. `ISS-021` için EPUB iç ZIP bütçesi ve Android intent read-öncesi boyut
-   kontrolünü tamamlamak.
+3. Genel sync outbox/retry state machine'ini ve kötü ağ/process-restart
+   regresyonunu (`RM-F-01`, `RSK-004`) tamamlamak.
 
 ---
 
@@ -641,6 +641,7 @@ noktasıdır.
 | `vitest`, `jsdom`, Testing Library, `fake-indexeddb` | `4.1.10`, `30.0.1`, `16.3.2`/`7.0.0`, `6.2.5` | Unit/integration; QA | MIT; fake-indexeddb Apache-2.0 | Aylık; bütün Vitest ve fake DB migration testleri |
 | `@playwright/test` | `1.62.0` | Core/compat/visual/a11y/benchmark E2E; QA | Apache-2.0 | Aylık; üç browser kurulumu ve tüm Playwright katmanları |
 | `@axe-core/playwright` | `4.12.1` | WCAG otomasyonu; accessibility | MPL-2.0 | Aylık; kural değişimleri baseline gevşetmeden incelenir |
+| `@firebase/rules-unit-testing`, `firebase-tools` | `5.0.1`, `15.25.1` | Firestore rule/account-deletion emülatörü; security-QA | Apache-2.0, MIT | Her rule değişiminde CI; CLI transitif audit bulguları yalnız güvenilir proje girdileriyle sınırlandırılır ve upstream aylık izlenir |
 | `eslint`, `eslint-config-next` | `9.39.5`, `16.2.11` | Statik analiz; maintainer | MIT | Next ile hizalı; sıfır yeni error |
 | `@capacitor/cli`, `@capacitor/assets` | `8.4.2`, `3.0.5` | Native sync ve ikon üretimi; Android/release | MIT | Runtime Capacitor ile hizalı; Gradle assemble/sync |
 | `shadcn` | `4.14.1` | Kaynak UI bileşeni üretimi; design-system | MIT | Yalnız ihtiyaç halinde; üretilen diff manuel incelenir |
@@ -845,7 +846,7 @@ Paperlike iki farklı kalıcılık mekanizması kullanır:
 
 ### 8.2 IndexedDB şeması
 
-Veritabanı adı `epub-reader`, güncel şema sürümü `4` değeridir.
+Veritabanı adı `epub-reader`, güncel şema sürümü `5` değeridir.
 
 | Object store | Anahtar | İçerik | İndeks |
 |---|---|---|---|
@@ -857,6 +858,7 @@ Veritabanı adı `epub-reader`, güncel şema sürümü `4` değeridir.
 | `bookmarks` | `id` | Konum ve etiket | `by-book` |
 | `readingStats` | `date` | Yerel gün ve dakika | — |
 | `driveUploadSessions` | `bookId` | Devam ettirilebilir Drive yükleme oturumu | — |
+| `syncTombstones` | birleşik tombstone `id` | UID-scoped kitap/vurgu/yer imi silme işareti ve Drive retry kimliği | `by-uid` |
 
 ### 8.3 Ana veri tipleri
 
@@ -957,7 +959,8 @@ Yeni kod aşağıdaki kuralları bozmamalıdır:
 | DB v1 | Güncel DB | Kitap/dosya/kapak/ilerleme korunur |
 | DB v2 | Güncel DB | Vurgu ve yer imleri korunur |
 | DB v3 | Güncel DB | İstatistikler korunur; Drive oturum store'u oluşur |
-| DB v4 | Sonraki sürüm | Bütün kullanıcı verisi ve yükleme oturumları korunur |
+| DB v4 | Güncel DB | Bütün kullanıcı verisi ve yükleme oturumları korunur; `syncTombstones` store'u oluşur |
+| DB v5 | Sonraki sürüm | Bütün kullanıcı verisi, yükleme oturumları ve tombstone'lar korunur |
 | Backup v1 | Güncel uygulama | Eksiksiz round trip |
 | Daha yeni backup | Eski uygulama | Açık ve çevrilmiş hata, veri değişikliği yok |
 | Bozuk ZIP/manifest | Güncel uygulama | Kontrollü hata, mevcut kitaplık korunur |
@@ -982,18 +985,19 @@ veya senkron değildir.
 
 | Veri sınıfı | Ana kaynak / saklama yeri | ZIP export/restore | Mevcut bulut davranışı | Silme ve retention | Açık boşluk |
 |---|---|---|---|---|---|
-| Kitap metadata'sı | IndexedDB `books` | Dahil / aynı kimlikle overwrite | Firestore push/pull; `updatedAt` ile son-yazan-kazanır | Kitap silmede yerelden hemen, uzaktan best-effort silinir | Tombstone ve uzak silme pull'u yok |
-| Orijinal EPUB/PDF | IndexedDB `files` | Dahil / zorunlu dosya doğrulaması sonrası restore | Drive'a yüklenir; yerelde yoksa okuyucu açılışında tembel indirilir | Kitap silmede yerel Blob ve bilinen Drive dosyası silinir | Başarısız uzak silme için kalıcı retry kuyruğu yok |
+| Kitap metadata'sı | IndexedDB `books` | Dahil / aynı kimlikle overwrite | Firestore push/pull; `updatedAt` LWW ve UID-scoped tombstone önce uygulanır | Yerelden hemen silinir; tombstone uzak eski ağacı prune eder ve sonraki girişte yeniden denenir | Tombstone ack/TTL ve saat sapması politikası açık |
+| Orijinal EPUB/PDF | IndexedDB `files` | Dahil / zorunlu dosya doğrulaması sonrası restore | Drive'a yüklenir; yerelde yoksa okuyucu açılışında tembel indirilir | Kitap silmede yerel Blob gider; Drive file ID tombstone'da retry için korunur | Genel backoff/outbox ve gerçek kötü ağ kanıtı yok |
 | Kapak | IndexedDB `covers`, bellek/object URL cache | Dahil / restore | Firestore'a Blob gönderilmez; dosya indirilince yeniden çıkarılabilir | Kitap silmede yerel kayıt ve cache temizlenir | Cihazlar arası birebir kapak eşitliği garanti değil |
 | Okuma ilerlemesi | IndexedDB `progress` | Dahil / overwrite | Firestore snapshot push/pull; `updatedAt` karşılaştırması | Kitap silmede yerel ve mevcut uzak belge temizliği | Saat sapması LWW sonucunu bozabilir |
-| Vurgu ve not | IndexedDB `highlights` | Dahil / overwrite | Firestore push/pull; güncellenebilir kayıt | Kitap silmede cascade; tekil silme uzaktan best-effort | Silme tombstone'u ve kalıcı retry yok |
-| Yer imi | IndexedDB `bookmarks` | Dahil / overwrite | Firestore push/pull; eksikse ekleme yaklaşımı | Kitap/tekil silmede yerel, ardından uzaktan best-effort | Cihazlar arası silme geri gelebilir |
+| Vurgu ve not | IndexedDB `highlights` | Dahil / overwrite | Firestore push/pull; `updatedAt` + kitap/tekil tombstone uzlaşması | Kitap silmede cascade; tekil silme yerel ve uzak tombstone ile taşınır | Alan bazlı conflict merge ve tombstone TTL yok |
+| Yer imi | IndexedDB `bookmarks` | Dahil / overwrite | Firestore push/pull; artık `updatedAt` + kitap/tekil tombstone uzlaşması | Kitap/tekil silme yerel; tombstone eski cihaz kopyasını bastırır | Tombstone TTL/ack ve gerçek iki fiziksel cihaz kanıtı yok |
+| Sync tombstone'u | IndexedDB `syncTombstones`, Firestore `users/{uid}/tombstones` | Dahil değil | Push/pull'da canlı kayıttan önce birleşir; eski kayıt ve alt koleksiyonları prune eder | Hesap silmede temizlenir; ürün içi TTL henüz yok | Süresiz büyümeyi önleyecek ack/TTL/Cloud TTL kararı gerekli |
 | Okuma istatistiği | IndexedDB `readingStats` | Dahil / overwrite | Güncel snapshot sözleşmesinde uzak eşleme yok | Kullanıcı site verisini temizleyene veya uygulamayı kaldırana kadar | Bulut kurtarma ve ayrı export yok |
 | Reader ayarları | Zustand `persist` / localStorage | Dahil değil | Ayar snapshot'ı Firestore'a push/pull | Site verisi temizleme/uygulama kaldırma ile gider | ZIP cihaz geçişinde ayarları geri getirmez (`ISS-009`) |
 | Kütüphane görünümü, dil, onboarding, hedef/mola | Ayrı Zustand `persist` anahtarları / localStorage | Dahil değil | Tamamı için sürümlü uzak sözleşme yok | Site verisi temizleme/uygulama kaldırma ile gider | Export ve toplu “ayarları sıfırla” sözleşmesi yok |
 | Drive resumable oturumu | IndexedDB `driveUploadSessions` | Dahil değil | Drive session URL/offset bilgisinin yerel çalışma kaydı | Tamamlanma, kesin hata veya kitap silmede temizlenir | Cihaz kaybında oturum gider; içerik tekrar yüklenmelidir |
-| Kimlik oturumu | Firebase Auth tarafından yönetilen istemci kalıcılığı | Dahil değil | Firebase Auth | Çıkış oturumu kapatır; uygulama içi hesap silme yok | Hesap kapatma ve bağlı uzak veri tasfiyesi yok |
-| Crash/diagnostik olay | Android Firebase Crashlytics | Dahil değil | Firebase/Crashlytics projesine gönderilir | Uygulama içinde kullanıcı kontrollü retention/silme yok | Privacy policy, saklama süresi ve opt-out tanımlanmalı |
+| Kimlik oturumu | Firebase Auth tarafından yönetilen istemci kalıcılığı | Dahil değil | Firebase Auth | Uygulama içi silme kimliği yeniden doğrular; Firestore + Drive temizliğinden sonra Auth'u siler | Public web talep yolu, gerçek servis E2E kanıtı ve provider/retention matrisi açık |
+| Crash/diagnostik olay | Android Firebase Crashlytics; varsayılan collection kapalı | Dahil değil | Yalnız cihazdaki açık opt-in sonrası Firebase/Crashlytics projesine gönderilir | Opt-out JS iletimini hemen keser; native override sonraki açılışta tam uygulanır ve gönderilmemiş raporlar silinir; Firebase trace/ilişkili ID retention'ı 90 gün | Release cihazında ağ/console davranışı doğrulanmalı; Analytics collection ayrı karardır |
 | Kullanıcının indirdiği ZIP | Uygulama dışı, seçilen dosya konumu | Kendisi taşınabilir yedektir | Otomatik upload yok | Kullanıcı/işletim sistemi yönetir | Şifreleme, otomatik planlama ve uygulama içi retention yok |
 
 #### Yaşam döngüsü olayları
@@ -1008,7 +1012,7 @@ veya senkron değildir.
 | Giriş / açılış pull | Uzak metadata yerelle karşılaştırılır; eksik dosya açılışta Drive'dan alınabilir | Silme uzlaşması, deterministik saat uzlaşması ve bütün alanlar için merge yoktur |
 | Çıkış | Auth oturumu kapanır | Yerel kitaplık otomatik silinmez; paylaşılan cihaz politikası tanımlı değildir |
 | Site verisini temizleme / uninstall | IndexedDB, localStorage ve cache cihazdan kaldırılabilir | Yalnız başarılı ZIP/bulut kopyası varsa kurtarma mümkündür |
-| Hesap kapatma | Uygulamada uygulanmış uçtan uca akış yoktur | Auth, Firestore, Drive ve Crashlytics verisinin birlikte tasfiyesi garanti edilmez |
+| Hesap kapatma | Yeniden doğrulama → sync bariyeri → Firestore → Drive → Auth sırası uygulanır; yerel silme ayrı seçimdir | Crashlytics sunucu retention'ı ve public web talep yolu bu istemci zincirinin dışındadır |
 
 #### Silme, export ve retention ilkeleri
 
@@ -1021,8 +1025,9 @@ veya senkron değildir.
   çalıştırılabilir bir sunucu/operasyon yolu gerekir.
 - Firestore ve Drive için ürün retention süresi henüz belirlenmemiştir.
   Production öncesi privacy policy ile aynı, doğrulanabilir süreler yazılmalıdır.
-- Crashlytics veri kategorileri, gönderim koşulu, saklama süresi ve kullanıcı
-  talebiyle silme yolu privacy dokümanına bağlanmalıdır.
+- Crashlytics varsayılan kapalıdır; cihazdaki açık opt-in, 90 günlük Firebase
+  retention açıklaması ve opt-out/unsent-report silme davranışı hesap panelinde
+  gösterilir. Release cihazında gerçek ağ davranışı ayrıca kanıtlanmalıdır.
 - ZIP yedeği uygulama tarafından şifrelenmez. Hassas not içeren arşiv kullanıcıya
   açık uyarı verilmeden üçüncü taraf hedefe yüklenmemelidir.
 
@@ -1041,8 +1046,8 @@ değildir.
 | Bozuk/uyumsuz ZIP | Mevcut kitaplıkta `0` mutation | Hatanın `< 10 sn` içinde görünmesi | Mutation öncesi preflight/CRC mevcut; büyük arşiv süresi ayrıca ölçülmeli |
 | Geçici ağ/Firestore/Drive kesintisi | Hedef: metadata `≤ 5 dk`, dosya `≤ 15 dk` | Bağlantı döndükten sonra hedef `< 10 dk` | Anlık best-effort çağrı ve resumable upload var; genel dayanıklı retry/outbox yok |
 | İki cihazda eşzamanlı değişiklik | Son başarılı değişikliklerden birini koruma | Sonraki başarılı pull içinde | `updatedAt` LWW mevcut; saat sapması ve alan bazlı merge kanıtı yok |
-| Bir cihazda kitap/not/yer imi silme | Hedef: silmeyi `≤ 5 dk` içinde tüm cihazlara taşımak | Sonraki başarılı sync | Mevcut sürüm hedefi karşılamaz; tombstone/pull-delete yok (`ISS-019`) |
-| Hesap kapatma | Auth + Firestore + Drive kullanıcı verisinde `0` artık | Kullanıcıya `24 saat`, operasyonel üst sınır `30 gün` | Akış/retention politikası uygulanmadı (`ISS-020`) |
+| Bir cihazda kitap/not/yer imi silme | Hedef: silmeyi `≤ 5 dk` içinde tüm cihazlara taşımak | Sonraki başarılı sync | Tombstone/pull-delete ve eski ikinci cihaz emülatör regresyonu geçti; gerçek kötü ağ ve iki fiziksel cihaz süre ölçümü açık (`ISS-019`) |
+| Hesap kapatma | Auth + Firestore + Drive kullanıcı verisinde `0` artık | İstemci akışında anlık; operasyonel retention hedefi ayrıca onaylanmalı | Sıralı ve tekrar çalıştırılabilir istemci akışı + kısmi hata bildirimi uygulandı; gerçek Firebase/Drive E2E, public web talep yolu ve retention politikası açık (`ISS-020`) |
 
 #### Kurtarma runbook'ları
 
@@ -1057,12 +1062,17 @@ değildir.
 4. **Uzak ve yerel kopya çatışıyor:** `updatedAt` LWW sonucunu gözlemle; cihaz
    saatlerini doğrula. Kritik not için ZIP/export kopyasını koru; otomatik alan
    birleştirme varmış gibi davranma.
-5. **Uzak silme başarısız:** Yerel silmenin tamamlandığını, Firestore ve Drive
-   kayıtlarının ise kalmış olabileceğini kabul et. Tombstone/retry uygulanana
-   kadar Firebase/Drive konsolundan yetkili manuel tasfiye gerekir.
-6. **Hesap silme talebi:** Otomatik akış hazır değildir. Production ortamında
-   destek talebi, kimlik doğrulama, Firestore/Drive tasfiyesi ve tamamlanma kaydı
-   olmadan “hesap silindi” denmemelidir.
+5. **Uzak silme başarısız:** Yerel silme ve hesap-scoped tombstone kalıcıdır.
+   Aynı hesapla sonraki başarılı sync tombstone'u yeniden gönderir, eski
+   Firestore kayıtlarını prune eder ve saklanan `driveFileId` ile Drive silmeyi
+   tekrar dener. Genel backoff/outbox olmadığı için uzun kesintide yeniden giriş
+   tetikle; yine başarısızsa yetkili konsol tasfiyesi uygula.
+6. **Hesap silme talebi:** Uygulama içindeki iki aşamalı akışla yeniden doğrula;
+   senkron bariyerini kur; Firestore ağacı ve Drive klasöründen sonra Auth'u sil.
+   Bir adım hata verirse UI'ın bildirdiği kalan kapsamı koruyup aynı hesapla
+   yeniden dene. “Hesap silindi” yalnız Auth dahil uzak zincir tamamlanınca
+   gösterilir; seçilen yerel temizlik ayrı bir kısmi sonuçtur. Production
+   yayınından önce gerçek Firebase/Drive hesabıyla E2E kanıtı alınmalıdır.
 
 #### Veri dayanıklılığı değişmezleri
 
@@ -1790,9 +1800,9 @@ ayrı güvenlik alanı değildir.
 
 | Yüzey | Mevcut kontrol | Sınır / eksik |
 |---|---|---|
-| Web file picker import | Extension/MIME yönlendirmesinden sonra PDF `%PDF-`, EPUB `PK` signature ve 1 GiB hard ceiling parser öncesi doğrulanır | EPUB iç `mimetype`/entry genişleme bütçesi henüz parser öncesi doğrulanmaz |
-| Android VIEW/SEND | Bilinen MIME/uzantı filtreleri; yalnız `paperlike` scheme shortcut sayılır; FileProvider `exported=false` | MainActivity exported; gönderen URI/MIME güvenilmez, `file://` kabul edilir, tüm dosya base64'e alınır, hard size limiti/grant doğrulama yok |
-| EPUB | `allowScriptedContent: false`, ZIP signature/1 GiB ceiling, açılış timeout'u ve kontrollü error fallback | EPUB iç ZIP entry/genişleme bütçesi yok; HTML/CSS parser açıkları ve uzak kaynak isteği hâlâ mümkün |
+| Web file picker import | PDF `%PDF-`, EPUB `PK` + zorunlu `mimetype`, 1 GiB hard ceiling ve iç ZIP bütçeleri parser öncesi doğrulanır | Signature geçerli olsa da parser açığına karşı fuzz/worker izolasyonu ayrıca gerekir |
+| Android VIEW/SEND | Bilinen MIME/uzantı filtreleri; yalnız `paperlike` scheme shortcut sayılır; FileProvider `exported=false`; provider boyutu base64 read'den önce 1 GiB ceiling'e tabi | MainActivity exported; URI/MIME güvenilmez, `file://` kabul edilir ve kötü amaçlı provider boyut metadata'sını yanlış bildirebilir |
+| EPUB | `allowScriptedContent: false`; ZIP signature + `mimetype`; 1 GiB arşiv, 10.000 entry, 512 MiB entry, 4 GiB açılmış toplam ve 500:1 oran; timeout/error fallback | HTML/CSS parser açıkları, uzak kaynak isteği ve JSZip+epub.js çift parse maliyeti hâlâ mümkün |
 | PDF | PDF.js worker/runtime, reader error fallback, lazy sayfa rendering | Magic header/byte bütçesi yok; parse/search yine CPU/bellek tüketebilir |
 | Kapak/görsel | En fazla 384×576 thumbnail, bounded cache | Decode öncesi piksel/byte bombası için açık preflight yok |
 | Backup import | CRC32, manifest şeması, safe/benzersiz ID, referans/zorunlu dosya ve gerçek entry boyutu preflight'ı; 4 GiB arşiv, 10.000 entry, 1 GiB/entry, 8 GiB açılmış toplam, 32 MiB manifest, 500:1 oran bütçesi | CRC authenticity imzası değildir; JSZip central directory parse maliyeti ve gömülü EPUB iç arşivi ayrı sınır ister |
@@ -1800,28 +1810,28 @@ ayrı güvenlik alanı değildir.
 | IndexedDB/localStorage | Origin/app sandbox, local-first; transaction/cascade kuralları | Uygulama içi şifreleme yok; XSS, açık cihaz, WebView/backup erişimi veriyi okuyabilir |
 | Android Auto Backup | Yalnız `app_webview/` açıkça dahil; OS/Google hesabı yönetir | Kitap ve notlar kullanıcının Google backup hesabına taşınabilir; uygulama içi opt-out/açıklama tamamlanmadı |
 | PWA/service worker | HTTPS hosting varsayımı, staging cache doğrulama ve rollback; production Android cleartext kapalı | Hosting CSP/security header sözleşmesi yok; origin ele geçirilirse cache ve yerel veri etkilenir |
-| Firebase/Drive | Firebase lazy init; Drive `drive.file`; uid-scoped istemci yolları; production cleartext kapalı | Rule CI/emulator kanıtı, genel outbox, tombstone ve hesap tasfiyesi yok |
+| Firebase/Drive | Firebase lazy init; Drive `drive.file`; uid-scoped yollar; deny-by-default rule CI; hesap tasfiyesi; UID-scoped tombstone/pull-delete ve ikinci cihaz emülatör kanıtı | Genel outbox/backoff, tombstone TTL/ack, gerçek token iptali ve fiziksel iki cihaz kanıtı yok |
 | Drive resumable session | Yalnız yerel IndexedDB çalışma kaydı, tamamlanma/hata/silmede temizleme | Session URL bearer-benzeri hassas veridir; XSS/log/export'a sızmamalı, TTL yok |
-| Crashlytics | Yalnız native; global error/rejection message ve stack gönderilir; web'de no-op | Redaction/consent/retention yok; hata metni URI, başlık veya kullanıcı içeriği taşıyabilir |
+| Crashlytics | Yalnız native; manifestte collection varsayılan kapalı, cihaz-yerel açık opt-in mevcut; opt-out JS iletimini keser ve unsent report silme ister; message/stack merkezi redactor ve boyut limitinden geçer; web'de no-op | Native override kapatması sonraki launch'ta tam uygulanır; gerçek release ağ/console kanıtı ve serbest metin için mutlak içerik tanıma garantisi yok |
 | Dependency/build | Lockfile, audit, exact framework sürümleri, overrides, CI kalite kapıları | Production transitif PostCSS bulguları açık; SBOM/license artifact ve secret scan release kapısı değil |
 
 #### STRIDE tehdit kataloğu
 
 | ID / sınıf | Tehdit senaryosu | Etki | Mevcut azaltım | Gerekli sonraki kontrol |
 |---|---|---|---|---|
-| THR-S-01 / Spoofing | Dış uygulama sahte MIME/uzantıyla başka içeriği kitap gibi gönderir | Parser saldırısı, DoS | PDF/ZIP signature, 1 GiB ceiling ve parser fallback'i | EPUB `mimetype`, izinli URI scheme/grant ve native read öncesi boyut kontrolü |
+| THR-S-01 / Spoofing | Dış uygulama sahte MIME/uzantıyla başka içeriği kitap gibi gönderir | Parser saldırısı, DoS | PDF/ZIP signature, EPUB `mimetype`, 1 GiB ceiling, native pre-read stat ve parser fallback'i | İzinli URI scheme/grant; provider boyutuna güvenmeyen stream hard stop |
 | THR-S-02 / Spoofing | Manipüle `paperlike://continue-reading?bookId=` başka kitabı/boş state'i açmayı dener | Yetkisiz navigasyon veya crash | Yalnız yerel lookup; bulunamazsa reader hatası | `bookId` safe-ID doğrulaması ve bilinmeyen deep-link testi |
 | THR-T-01 / Tampering | Backup manifest/file değiştirilip meşru yedek gibi restore edilir | Yanlış metadata, zararlı belge, overwrite | CRC, şema ve referans preflight | Opsiyonel imza/şifreleme kararı; içerik format doğrulaması |
 | THR-T-02 / Tampering | Service worker veya static artifact origin/CDN'de değiştirilir | Kalıcı kötü amaçlı JS, bütün yerel/bulut veriye erişim | HTTPS ve atomik cache rollback | CSP/security headers, kontrollü deploy, artifact provenance/SRI uygulanabilirliği |
 | THR-T-03 / Tampering | Cihaz saati değiştirilerek `updatedAt` LWW sonucu yönlendirilir | Yeni not/ilerleme ezilir | Yerel/uzak timestamp karşılaştırması | Server timestamp, monotonic/version vector veya açık çatışma |
 | THR-R-01 / Repudiation | Kullanıcı/cihaz silme, restore veya remote sync işlemini kimin yaptığını kanıtlayamaz | Destek ve tasfiye uyuşmazlığı | Yerel UI sonucu/toast | İçerik taşımayan privacy-safe operasyon ID/durum kaydı |
 | THR-I-01 / Disclosure | Şifrelenmemiş ZIP/not export'u yanlış uygulama/klasörle paylaşılır | Kitap/not içeriği açığa çıkar | Kullanıcı başlatmalı share | Açık hassasiyet uyarısı, opsiyonel şifreli backup, cache cleanup |
-| THR-I-02 / Disclosure | Crashlytics message/stack dosya URI'si, kitap adı veya not parçası taşır | Uzak telemetriye kullanıcı içeriği | Web'de no-op | Merkezi redaction, allowlist olay kodu, consent/retention |
+| THR-I-02 / Disclosure | Crashlytics message/stack dosya URI'si, kitap adı veya not parçası taşır | Uzak telemetriye kullanıcı içeriği | Varsayılan kapalı açık opt-in + opt-out/unsent silme; URL/path/e-posta/token/quoted text redaction + 512/4096 karakter limiti; web'de no-op | Release cihazında ağ/console doğrulaması ve mümkünse allowlist olay kodu |
 | THR-I-03 / Disclosure | EPUB içinden uzak font/kaynak isteği okuma anını/IP'yi üçüncü tarafa bildirir | Metadata/privacy sızıntısı, offline kırılması | Script kapalı | Fontları yerel paketle, uzak resource/network politikasını sınırla |
 | THR-I-04 / Disclosure | XSS/dependency compromise IndexedDB, localStorage ve Drive session URL'sini okur | Tam kitaplık, token/session açığı | Scripted EPUB kapalı, lockfile | CSP, dependency SLA, session minimizasyonu/TTL, hassas log yasağı |
 | THR-I-05 / Disclosure | Android Auto Backup beklenmeyen Google hesabına yerel kitaplığı taşır | Kitap/not gizliliği | OS hesabı/sandbox | Privacy/Data Safety açıklaması ve yedek kapsamı/opt-out kararı |
-| THR-D-01 / DoS | ZIP bomb veya çok girişli EPUB/backup aşırı genişler | OOM, UI donması, process death | Backup dış ZIP bütçeleri; timeout/iptal bazı aşamalarda | Aynı bütçe modelini EPUB içeriğine uygula; worker/streaming |
-| THR-D-02 / DoS | Çok büyük Android intent dosyası base64 + Blob ile bellekte katlanır | Cold-start OOM | Hata toast'u | Native stream/copy, byte limiti ve preflight size query |
+| THR-D-01 / DoS | ZIP bomb veya çok girişli EPUB/backup aşırı genişler | OOM, UI donması, process death | Backup dış ZIP ve EPUB iç ZIP kaynak bütçeleri; timeout/iptal | Worker/streaming ve gerçek cihaz tepe bellek kanıtı |
+| THR-D-02 / DoS | Çok büyük Android intent dosyası base64 + Blob ile bellekte katlanır | Cold-start OOM | Provider stat ile pre-read 1 GiB limit + Blob sonrası tekrar doğrulama | Base64 yerine native stream/copy ve okunan byte hard stop |
 | THR-D-03 / DoS | Patolojik PDF/EPUB parse/search CPU'yu tüketir | Reader kullanılamaz | Search abort/yield/limit; open timeout | Parser worker izolasyonu, süre/bellek bütçesi ve kötü fixture corpus |
 | THR-D-04 / DoS | Büyük görsel decode bombası kapak çıkarmada belleği tüketir | Import crash | Thumbnail/cache limiti | Decode öncesi boyut/piksel bütçesi ve güvenli fallback |
 | THR-E-01 / Elevation | EPUB script/aktif içerik üst uygulama bağlamına erişmeye çalışır | XSS/token/local data erişimi | `allowScriptedContent: false`, iframe sınırı | Regresyon testi; link/navigation ve remote resource policy |
@@ -1832,16 +1842,16 @@ ayrı güvenlik alanı değildir.
 
 | Kimlik | Kabul kanıtı | Öncelik / bağ |
 |---|---|---|
-| SEC-FILE-001 | **Kısmi geçti:** EPUB `PK`, PDF `%PDF-`, sahte uzantı reddi ve 1 GiB ceiling 4 güvenlik senaryosuyla doğrulandı; EPUB `mimetype` ve native pre-read açık | Kritik / `ISS-021` |
-| SEC-ZIP-001 | **Backup dış ZIP geçti:** 4 GiB/10.000 entry/1 GiB entry/8 GiB total/32 MiB manifest/500:1 ve gerçek boyut eşleşmesi 8 senaryoyla doğrulandı; EPUB iç ZIP açık | Kritik / `ISS-021`, `RSK-012` |
+| SEC-FILE-001 | **Geçti:** EPUB `PK` + `mimetype`, PDF `%PDF-`, sahte uzantı reddi, 1 GiB ceiling ve Android stat-before-read doğrulandı | Kritik / `ISS-021` |
+| SEC-ZIP-001 | **Geçti:** Backup dış ZIP ve EPUB iç ZIP entry/tekil/toplam/manifest/oran bütçeleri; backup gerçek boyut eşleşmesi; toplam 10 kaynak senaryosu | Kritik / `ISS-021`, `RSK-012` |
 | SEC-INTENT-001 | `content://` grant, reddedilen scheme/MIME, safe `bookId`, büyük intent dosyası ve process restart testleri | Yüksek / `RSK-002` |
 | SEC-EPUB-001 | Scriptli EPUB kod çalıştıramaz; dış navigation/resource davranışı fixture ile doğrulanır | Yüksek / `RSK-002` |
-| SEC-LOG-001 | Error/stack redactor kitap adı, not, URI, token, session URL ve dosya yolu göndermediğini test eder | Kritik / `ISS-023` |
+| SEC-LOG-001 | **Temel geçti — 7/7:** redaction/limit 2/2; default-off ve opt-in handler 2/2; native UI 1/1; manifest/plugin contract 2/2. Gerçek Android ağ/console doğrulaması açık | Kritik / `ISS-023` |
 | SEC-WEB-001 | Production host için CSP, `frame-ancestors`, nosniff, referrer ve permissions policy doğrulaması | Yüksek / `ISS-022` |
 | SEC-LOCAL-001 | Uninstall/site clear/Auto Backup/paylaşılan cihaz senaryosu ve kullanıcı açıklaması | Yüksek / `RSK-001` |
 | SEC-BACKUP-001 | Şifreli backup ürün kararı; seçilirse yanlış parola/tamper/restore round-trip testi | Orta / roadmap |
 | SEC-RELEASE-001 | Secret scan, dependency/SBOM-license artifact, release manifest ve imzalı AAB inspection | Kritik / Faz D |
-| SEC-CLOUD-001 | Firestore deny-by-default rule emulatoru, iki UID izolasyonu, yetki iptali ve hesap tasfiye testi | Kritik / `RM-F-04` |
+| SEC-CLOUD-001 | **Temel geçti — 5/5:** anonim erişim reddi, UID/path izolasyonu, desteklenen sahip erişimi, production hesap-tasfiye helper'ı ve tombstone'un eski ikinci-cihaz kaydını bastırması Firestore emulatorunda doğrulandı; gerçek token/yetki iptali açık | Kritik / `RM-F-04` |
 
 #### Olay müdahale ve güvenli hata ilkeleri
 
@@ -1885,13 +1895,13 @@ olmalıdır. Kaynaklar:
 | Veri / Play adayı | Kaynak ve hedef | Amaç | Zorunlu mu? | Retention / silme | Data Safety çalışma kararı |
 |---|---|---|---|---|---|
 | EPUB/PDF dosyası ve kapak — “Files and docs” | Kullanıcı → yerel IndexedDB; Google hesapla sync seçilirse kullanıcının Drive'ı | Okuma, backup ve cihazlar arası dosya kurtarma | Temel yerel okuma için dosya gerekli; bulut opsiyonel | Yerelde kitap silme/uninstall/site clear; Drive'da bilinen dosyaya best-effort silme | Yalnız cihazda kalırsa Play “collected” değil; Drive upload aktif artifact'te varsa off-device collection olarak muhafazakâr biçimde incele |
-| Kitap başlığı/yazar/kategori | Dosya metadata'sı/kullanıcı → yerel; girişte Firestore | Kütüphane ve sync | Yerel işlev için gerekli; cloud opsiyonel | Kitap silme; uzak tombstone yok | Firestore açıksa “App activity/Other user-generated content” sınıflandırmasını Play formunda doğrula |
+| Kitap başlığı/yazar/kategori | Dosya metadata'sı/kullanıcı → yerel; girişte Firestore | Kütüphane ve sync | Yerel işlev için gerekli; cloud opsiyonel | Kitap silmede yerel kayıt gider; UID-scoped uzak tombstone eski cihaz kopyasını bastırır; TTL kararı açık | Firestore açıksa “App activity/Other user-generated content” sınıflandırmasını Play formunda doğrula |
 | İlerleme, yer imi, okuma istatistiği ve ayarlar | Kullanıcı etkileşimi → yerel; ilerleme/yer imi/ayarın bir bölümü Firestore | Okuma devamlılığı ve kişiselleştirme | Yerel üretim gerekli; cloud opsiyonel | Kitap/site silme; istatistik cloud sözleşmesinde yok | Uzağa giden alanlar için “App interactions/Other actions”, amaç app functionality |
-| Vurgu ve not metni | Kullanıcı → IndexedDB; girişte Firestore | Not alma ve cihazlar arası devam | Opsiyonel | Tekil/kitap silme; uzak silme v1 güvenilir değil | “Other user-generated content”, app functionality; hassas serbest metin olarak ele al |
+| Vurgu ve not metni | Kullanıcı → IndexedDB; girişte Firestore | Not alma ve cihazlar arası devam | Opsiyonel | Tekil/kitap silme UID-scoped tombstone ile sonraki sync'e taşınır; gerçek iki cihaz kanıtı açık | “Other user-generated content”, app functionality; hassas serbest metin olarak ele al |
 | E-posta, parola ve Firebase UID | Kullanıcı → Firebase Authentication; parola uygulama DB'sine yazılmaz | Hesap oluşturma/giriş/reset ve veri ayrımı | Sync hesabı için gerekli, yerel okuma için opsiyonel | Firebase'e silme başlatılana kadar; Firebase Auth IP'leri birkaç hafta, diğer auth verisini silme başlatıldıktan sonra live/backup'tan 180 gün içinde kaldırır | “Personal info: Email address” ve “User IDs”; account management/app functionality |
 | Google profil adı/e-posta/UID ve OAuth tokenı | Google Sign-In/Firebase Auth; token bellek cache'i | Google giriş ve Drive yetkisi | Google/Drive sync seçilirse gerekli | Çıkışta uygulama token cache'i temizlenir; provider retention ayrıca geçerli | Name/email/user ID erişimini kullanılan provider alanlarıyla doğrula; parola/tokenı loglama |
-| Crash trace, JS error message/stack | Android uygulaması → Firebase Crashlytics | Crash teşhisi ve güvenilirlik | Mevcut build'de otomatik; opt-out uygulanmadı | Firebase: trace ve ilişkili ID'ler 90 gün tutulur, sonra live/backup silme süreci başlar | “App info and performance: Crash logs/Diagnostics”; analytics; `ISS-023` çözülmeden “optional” deneme |
-| Crashlytics/Firebase installation, session ve cihaz bilgisi | SDK → Firebase | Crash dedupe, etkilenen kurulum sayısı ve teşhis | Mevcut build davranışına bağlı | Crashlytics ilişkili ID'ler için 90 günlük politika | “Device or other IDs” ve diagnostics; SDK Index/gerçek runtime doğrulaması gerekli |
+| Crash trace, redakte JS error message/stack | Android uygulaması → Firebase Crashlytics | Crash teşhisi ve güvenilirlik | Varsayılan kapalı; cihaz-yerel açık opt-in gerekir; payload merkezi redactor/limite tabidir | Opt-out JS iletimini hemen keser, native kapatma sonraki launch'ta tam uygulanır ve unsent report silinir; Firebase trace/ilişkili ID'leri 90 gün tutar | “App info and performance: Crash logs/Diagnostics”; kullanıcı kontrolü mevcut, release runtime kanıtı gerekli |
+| Crashlytics/Firebase installation, session ve cihaz bilgisi | SDK → Firebase | Crash dedupe, etkilenen kurulum sayısı ve teşhis | Crashlytics collection manifestte kapalı; runtime opt-in override cihazda persist edilir | Crashlytics ilişkili ID'ler için 90 günlük politika | “Device or other IDs” ve diagnostics; SDK Index/gerçek runtime doğrulaması gerekli |
 | Firebase Analytics otomatik olay/cihaz bilgisi | Android Firebase Analytics dependency → Google/Firebase | Crashlytics breadcrumb ve olası kullanım analizi | Mevcut Gradle build'inde SDK var; runtime collection doğrulanmalı | Firebase/Analytics ayar ve sözleşmesine bağlı | App interactions, device IDs, diagnostics ve olası approximate location/IP için Play SDK Index + DebugView doğrulaması şart |
 | IP adresi ve user-agent | Firebase Auth/Google servislerine ağ isteği | Güvenlik, kötüye kullanım önleme ve servis sunumu | Bulut özelliği kullanılırsa teknik olarak gerekli | Firebase Auth IP logları birkaç hafta | IP'den konum çıkarımı nedeniyle “Approximate location” yorumunu Play formunda/SDK rehberinde doğrula |
 | Google Fonts ağ isteği | EPUB iframe → `fonts.googleapis.com`/font hostu | Kitap fontu | Hayır; sistem fallback'i var | Google servis politikası | Üçüncü taraf ağ erişimi; production öncesi fontu yerelleştir (`ISS-022`) |
@@ -1912,10 +1922,10 @@ Firebase Console ve SDK Index ile aynı release üzerinde doğrulanır.
 |---|---|---|
 | Uygulama veri topluyor veya paylaşıyor mu? | **Evet** — Auth, Firestore/Drive sync ve Crashlytics/Analytics off-device davranışı nedeniyle | Release AAB SDK listesi + runtime network/DebugView |
 | Bütün toplanan veri aktarımda şifreli mi? | **Hedef evet** — Firebase/Google HTTPS ve production cleartext kapalı | Network Security Config/merged manifest + endpoint incelemesi |
-| Kullanıcı veri silme talebi verebilir mi? | **Bugün hayır / yayın engeli** | In-app deletion + public deletion URL + uçtan uca tasfiye kaydı |
+| Kullanıcı veri silme talebi verebilir mi? | **Uygulama içinde evet; public web yolu henüz yok / yayın engeli** | In-app iki aşamalı silme mevcut; public deletion URL + gerçek servis tasfiye kaydı gerekli |
 | Veri paylaşımı var mı? | Google hizmetleri yalnız hizmet sağlayıcı rolündeyse çoğu işleme “sharing” sayılmayabilir; Analytics, Fonts ve kullanıcı yönlendirmeli Drive/share transferi sözleşme bazında incelenmeli | Google Play tanımı, SDK Index, Firebase/Google sözleşmesi ve gerçek amaç |
-| Toplama opsiyonel mi? | Local-only kullanım opsiyon sunar; fakat Crashlytics/Analytics için bütün kullanıcıların opt-in/out kontrolü yoksa “optional” işaretlenemez | Consent/collection toggle davranış testi |
-| Hesap verisi siliniyor mu? | **Hayır, henüz uygulanmadı** (`ISS-020`) | Auth + Firestore + Drive + ilişkili telemetry tasfiye runbook/testi |
+| Toplama opsiyonel mi? | Crashlytics cihaz bazında varsayılan kapalı ve açık opt-in kontrollüdür; Firebase Analytics için collection kararı hâlâ ayrı ve açık | Crashlytics release runtime testi + Analytics consent/DebugView kararı |
+| Hesap verisi siliniyor mu? | **Auth + Firestore + Drive istemci akışı uygulandı; release doğrulaması kısmi** (`ISS-020`) | Gerçek servis E2E, public URL, retention ve ilişkili telemetry tasfiye kanıtı |
 
 #### Privacy policy yayın taslağı
 
@@ -1946,14 +1956,17 @@ orijinal kitap dosyası kullanıcının Google Drive alanına aktarılabilir. Pa
 uygulamayla açılan dosyalarla sınırlı erişim hedefler. Bulut verisi uçtan uca
 şifreli değildir; hizmet sağlayıcıların sunucu tarafı işleme koşulları geçerlidir.
 
-**Crash ve analytics.** Android build'i Firebase Crashlytics'e crash trace,
-uygulama/OS/cihaz bilgisi, kurulum ve session kimlikleri ile JavaScript error
-message/stack gönderebilir. Firebase'in yayımladığı mevcut retention'a göre
-Crashlytics trace ve ilişkili kimlikleri 90 gün tutar, ardından live/backup
-sistemlerinden kaldırma sürecini başlatır. Firebase Analytics'in etkin olduğu
-release'lerde app interaction, cihaz/kurulum ve teknik tanılama verisi işlenebilir.
-Production metni, gerçek release ayarı ve kullanıcı consent seçeneğiyle
-eşleşmelidir.
+**Crash ve analytics.** Android build'inde Crashlytics otomatik collection
+manifest düzeyinde kapalıdır. Kullanıcı hesap panelindeki cihaz-yerel kontrolü
+açarsa crash trace, uygulama/OS/cihaz bilgisi, kurulum/session kimlikleri ve
+redakte edilmiş JavaScript error message/stack gönderilebilir. Opt-out JS
+iletimini hemen keser; Firebase'in native override'ı sonraki uygulama açılışında
+tam uygulanır ve uygulama gönderilmemiş raporların silinmesini ister. Firebase'in
+yayımladığı mevcut retention'a göre Crashlytics trace ve ilişkili kimlikleri 90
+gün tutar, ardından live/backup sistemlerinden kaldırma sürecini başlatır.
+Firebase Analytics'in etkin olduğu release'lerde app interaction, cihaz/kurulum
+ve teknik tanılama verisi ayrıca işlenebilir; Analytics collection kararı
+Crashlytics opt-in kontrolünden ayrıdır.
 
 **Üçüncü taraflar.** Google/Firebase; Authentication, Firestore, Crashlytics ve
 Analytics hizmetlerini, Google Drive ise kullanıcı tarafından seçilen
@@ -1964,12 +1977,14 @@ olur.
 
 **Saklama ve silme.** Yerel veri kullanıcı silene, site verisini temizleyene veya
 uygulamayı kaldırana kadar kalır. Kullanıcının dışa aktardığı dosyaları kullanıcı
-yönetir. Firestore/Drive için production retention ve güvenilir cross-device
-silme henüz uygulanmamıştır. Hedef, hesap silme isteğinde aktif Firestore/Drive
-verisini en geç `[TARGET_ACTIVE_DELETE_DAYS]` gün içinde tasfiye etmek; yasal veya
-güvenlik gerekçesiyle tutulan istisnaları tür ve süreyle açıklamaktır. Firebase
-Auth kendi belgelenmiş backup temizleme süresini uygulayabilir. Bu hedef
-uygulanıp doğrulanmadan hesaplı sürüm Play Store'a gönderilmemelidir.
+yönetir. Uygulama içi hesap silme aktif Firestore ağacını ve erişilebilir Drive
+`Paperlike` klasörlerini Auth'tan önce siler; ancak production retention süresi,
+public web talep yolu ve ilişkili diagnostik verinin tasfiye sözleşmesi henüz
+tamamlanmamıştır. Hedef, hesap silme isteğinde aktif Firestore/Drive verisini en
+geç `[TARGET_ACTIVE_DELETE_DAYS]` gün içinde tasfiye etmek; yasal veya güvenlik
+gerekçesiyle tutulan istisnaları tür ve süreyle açıklamaktır. Firebase Auth kendi
+belgelenmiş backup temizleme süresini uygulayabilir. Bu hedef gerçek servis
+kanıtıyla doğrulanmadan hesaplı sürüm Play Store'a gönderilmemelidir.
 
 **Güvenlik.** Production Android cleartext trafiği kapalıdır ve Google/Firebase
 aktarımı HTTPS kullanır. Yerel veri işletim sistemi/origin sandbox'ıyla korunur;
@@ -2002,12 +2017,16 @@ bildirilir. Sorular için `[PRIVACY_EMAIL_OR_REQUEST_URL]` kullanılmalıdır.
   envanteri karşılaştırıldı.
 - [ ] Firebase Analytics'in gerçekten gerekli olup olmadığı kararlaştırıldı;
   collection default/consent ve Data Safety cevabı test edildi.
-- [ ] Crashlytics açık rıza/opt-out kararı, redaction ve retention metni gerçek
-  davranışla eşleştirildi.
+- [x] Crashlytics JS error payload redaction ve boyut limitleri test edildi.
+- [x] Crashlytics varsayılan-kapalı açık opt-in/opt-out kontrolü, unsent-report
+  silme isteği ve 90 günlük retention metni uygulandı; kaynak/JS testleri geçti.
+- [ ] Crashlytics opt-in/opt-out gerçek release cihazında Firebase Console ve
+  ağ davranışıyla doğrulandı.
 - [ ] EPUB Google Fonts isteği kaldırıldı veya üçüncü taraf işleme olarak nihai
   politikada tutuldu.
-- [ ] Uygulama içi hesap silme ve public web talep URL'si; Auth, Firestore, Drive
-  ve ilişkili veriyi tekrar çalıştırılabilir biçimde tasfiye ediyor.
+- [x] Uygulama içi hesap silme Auth, Firestore ve Drive aktif verisini sıralı,
+  tekrar çalıştırılabilir ve kısmi hata görünür biçimde tasfiye ediyor.
+- [ ] Public web hesap silme talep URL'si ve gerçek servis E2E tasfiye kaydı.
 - [ ] Firestore/Drive aktif ve backup retention süreleri onaylanıp gerçek
   operasyon alarmı/runbook'uyla bağlandı.
 - [ ] Data Safety CSV/formu aynı sürümün davranışıyla dolduruldu ve ikinci kişi
@@ -2426,7 +2445,12 @@ senaryolarını temsil etmez.
 
 | Test/kapı | Kanıt | Son sonuç | Ortam | Baz | Tarih |
 |---|---|---|---|---|---|
-| Vitest toplamı | 25 test dosyası | **Geçti — 79/79** | Windows, Node `24.15.0`, jsdom/node/fake-indexeddb | `797a2e5` + çalışma ağacı | 2026-07-31 |
+| Vitest toplamı | 33 test dosyası | **Geçti — 100/100** | Windows, Node `24.15.0`, jsdom/node/fake-indexeddb | `5279ac3` + çalışma ağacı | 2026-07-31 |
+| `SEC-ACCOUNT-DELETE-001` | `lib/account-deletion.test.ts` | **Geçti — 5/5; sıra, Auth-last, retry/kısmi sonuç, provider seçimi ve Firestore descendant-before-parent tasfiyesi** | Windows, Node | `5279ac3` + çalışma ağacı | 2026-07-31 |
+| `SEC-SYNC-PAUSE-001` | `lib/sync-lifecycle.test.ts` | **Geçti — 1/1; başlamış işi drain, yeni işi bloklama ve retry resume** | Windows, Node | `5279ac3` + çalışma ağacı | 2026-07-31 |
+| `SEC-LOG-001` | `lib/error-redaction.test.ts`, `components/CrashReportingHandler.test.tsx`, `components/library/CrashReportingConsent.test.tsx`, `lib/crash-reporting-native-contract.test.ts` | **Temel geçti — 7/7; redaction/limit, default-off, explicit opt-in, handler gate, manifest ve native opt-out contract** | Windows, Node/jsdom + Android kaynak sözleşmesi | `5279ac3` + çalışma ağacı | 2026-07-31 |
+| `SEC-CLOUD-001` | `firebase-tests/firestore.rules.test.ts` | **Temel geçti — 5/5; anonim ret, iki UID izolasyonu, deny-by-default, gerçek hesap-tasfiye helper'ı ve ikinci-cihaz tombstone uzlaşması** | Firestore Emulator `1.22.0`, Java 21, Node `24.15.0` | `5279ac3` + çalışma ağacı | 2026-07-31 |
+| `SYNC-TOMBSTONE-001` | `lib/sync-tombstones.test.ts`, `lib/storage.test.ts` | **Geçti — 4/4; güvenli/stabil kimlik, en yeni marker, eski kaydı bastırma ve UID-scoped IndexedDB kalıcılığı** | Windows, Node/jsdom + fake-indexeddb | `5279ac3` + çalışma ağacı | 2026-07-31 |
 | `UT-DOCUMENT-LOCALE-001` | `components/DocumentLocaleSync.test.tsx` | **Geçti — 1/1** | Windows, jsdom | `797a2e5` + çalışma ağacı | 2026-07-31 |
 | `UT-PWA-UPDATE-001` | `components/PwaRegistrar.test.tsx` | **Geçti — 5/5; update onayla/ertele, install prompt, hata/retry ve cache uyarısı** | Windows, jsdom + fake service worker | `797a2e5` + çalışma ağacı | 2026-07-31 |
 | `UT-PWA-LIFECYCLE-001` | `lib/pwa-lifecycle.test.ts` | **Geçti — 3/3; başarı, retry ve cache hata geçişleri** | Windows, jsdom | `797a2e5` + çalışma ağacı | 2026-07-31 |
@@ -2442,9 +2466,9 @@ senaryolarını temsil etmez.
 | `IT-COVER-CACHE-001` | `lib/cover-cache.test.ts` | **Geçti — 7/7** | Windows, Node; 200 kitaplık LRU fixture | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-COVER-VIEWPORT-001` | `components/library/BookCover.test.tsx` | **Geçti — 1/1** | Windows, jsdom + IntersectionObserver | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-IMPORT-001` | `lib/import-book.test.ts` | **Geçti — 5/5; sahte PDF parser/storage öncesi reddediliyor** | Windows, jsdom | `797a2e5` + çalışma ağacı | 2026-07-31 |
-| `SEC-FILE-001` | `lib/file-validation.test.ts` + `lib/import-book.test.ts` | **Kısmi geçti — PDF/ZIP signature, boş/sahte/aşırı büyük dosya ve parser öncesi ret** | Windows, jsdom | `797a2e5` + çalışma ağacı | 2026-07-31 |
-| `SEC-ZIP-001` | `lib/zip-budget.test.ts` + `lib/backup.test.ts` | **Backup katmanı geçti — 8 kaynak bütçesi/entry eşleşme senaryosu** | Windows, Node + JSZip | `797a2e5` + çalışma ağacı | 2026-07-31 |
-| `IT-EPUB-PARSE-001` | `lib/epub-loader.test.ts` | **Geçti — 1/1** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
+| `SEC-FILE-001` | `lib/file-validation.test.ts` + import/EPUB testleri | **Geçti — PDF/ZIP signature, EPUB mimetype, boş/sahte/aşırı büyük dosya ve parser öncesi ret** | Windows, jsdom + JSZip | `797a2e5` + çalışma ağacı | 2026-07-31 |
+| `SEC-ZIP-001` | `lib/zip-budget.test.ts` + backup/EPUB testleri | **Geçti — backup dış + EPUB iç ZIP için 10 kaynak bütçesi/entry eşleşme senaryosu** | Windows, Node/jsdom + JSZip | `797a2e5` + çalışma ağacı | 2026-07-31 |
+| `IT-EPUB-PARSE-001` | `lib/epub-loader.test.ts` | **Geçti — 3/3; gerçek EPUB + eksik mimetype + yüksek oranlı entry** | Windows, jsdom + JSZip | `797a2e5` + çalışma ağacı | 2026-07-31 |
 | `UT-I18N-KEYS-001` | `lib/i18n/dictionaries.test.ts` | **Geçti — 1/1** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `UT-PWA-MANIFEST-001` | `app/manifest.test.ts` | **Geçti — 1/1** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `UT-PERF-POLICY-001` | `lib/reader-performance.test.ts` | **Geçti — 3/3** | Windows, Node | `05cda45` + çalışma ağacı | 2026-07-30 |
@@ -2466,6 +2490,7 @@ senaryolarını temsil etmez.
 | ESLint | `npm run lint` | **Geçti — 0 hata, 2 Firebase uyarısı** | Windows, ESLint 9 | `797a2e5` + çalışma ağacı | 2026-07-31 |
 | Production build | `npm run build` | **Geçti — 4 statik route/6 statik sayfa** | Windows, Next.js 16.2.11 | `797a2e5` + çalışma ağacı | 2026-07-31 |
 | Production audit | `npm audit --omit=dev` | **2 açık — 1 high PostCSS, 1 moderate Next** | npm dependency tree | `797a2e5` + çalışma ağacı | 2026-07-31 |
+| Tam dependency audit | `npm audit` | **35 açık — 1 critical, 29 high, 5 moderate; 33'ü geliştirme/CLI zincirinde, production 2 bulgu ayrı izleniyor** | npm dependency tree | `5279ac3` + çalışma ağacı | 2026-07-31 |
 | Web Quality CI | `.github/workflows/web-quality.yml` | Workflow eklendi; ilk remote çalışma bekleniyor | GitHub Actions, Node 20 | Çalışma ağacı | 2026-07-30 |
 
 Bu pano yalnız doğrulanmış sonuçları gösterir. Yerel sonuç, GitHub Actions
@@ -2721,7 +2746,7 @@ Test kimliği sınıfları:
 | PR-015 PWA | `UT-PWA-MANIFEST-001`, `UT-PWA-LIFECYCLE-001`, `UT-PWA-CACHE-001`, `E2E-W-PWA-001/002/003`, `E2E-W-COMPAT-001`, `E2E-W-RESP-001/002`, `VIS-PWA-001..005` | Önceki major/gerçek cihaz matrisi | Manifest, offline, install/storage, atomik cache, uyumluluk + responsive profiller ve 10 görsel durum geçti |
 | PR-016 Koleksiyon | `IT-COLLECTION-MIGRATION-001` | `E2E-W-COLLECTION-001` | Planlı |
 | PR-017 Senkron | `IT-SYNC-CONFLICT-001` | `E2E-W-SYNC-001`, `E2E-A-SYNC-001` | Planlı |
-| PR-018 Hesap silme | `SEC-ACCOUNT-DELETE-001` | `E2E-W-ACCOUNT-001` | Planlı |
+| PR-018 Hesap silme | `SEC-ACCOUNT-DELETE-001`, `SEC-SYNC-PAUSE-001`, `UT-I18N-KEYS-001` | `E2E-W-ACCOUNT-001`, gerçek Firebase/Drive hesabı | Birim/entegrasyon temeli geçti; gerçek servis E2E açık |
 | PR-019 Büyük kitap | `UT-PERF-POLICY-001`, `IT-PDF-VIRTUAL-001`, `UT-SEARCH-CONTROL-001`, `IT-EPUB-SEARCH-001`, `IT-SEARCH-PANEL-001` | `E2E-W-PERF-001`, gerçek cihaz baseline'ı, `PERF-BACKUP-001` | Web PDF ve iptal edilebilir arama temeli geçti; gerçek cihaz ölçümü planlı |
 | PR-020 Güncelleme | `E2E-A-UPDATE-001` | `MAN-PLAY-ROLLOUT` | Planlı |
 
@@ -2814,10 +2839,10 @@ kanıtları ayrıdır.
 | ID | Risk olayı / ilişkili kayıt | Tetikleyici veya erken sinyal | O | E | Skor | Mevcut kontrol / sonraki azaltım | Artık hedef | Sahip | Durum / gözden geçirme |
 |---|---|---|---:|---:|---:|---|---:|---|---|
 | RSK-001 | Cihaz/site verisi kaybı sonrası kitaplık kurtarılamaz (`RM-A-10`) | Uninstall, browser storage clear/eviction, WebView reset; güncel ZIP/bulut kopyası yok | 3 | 5 | 15 yüksek | Kalıcı storage, ZIP preflight/restore, bulut kopyası; backup yaşı görünümü ve recovery drill ekle | 6 | Data/operations | Açık; storage/sync değişiminde |
-| RSK-002 | Kötü amaçlı EPUB/PDF parser veya renderer açığını tetikler (`ISS-017`, `RM-A-03`) | Parser advisory, beklenmeyen ağ/file erişimi, render crash/uzun blok | 3 | 5 | 15 yüksek | PDF/ZIP signature + 1 GiB ceiling ve dependency override var; EPUB iç bütçe, native pre-read ve fuzz corpus ekle | 8 | Reader/security | Azaltılıyor; her parser upgrade/advisory |
+| RSK-002 | Kötü amaçlı EPUB/PDF parser veya renderer açığını tetikler (`ISS-017`, `RM-A-03`) | Parser advisory, beklenmeyen ağ/file erişimi, render crash/uzun blok | 2 | 5 | 10 yüksek | Signature/mimetype, kitap + EPUB/backup bütçeleri, native pre-read ve dependency override var; stream hard stop/fuzz corpus ekle | 8 | Reader/security | Azaltılıyor; her parser upgrade/advisory |
 | RSK-003 | Büyük kitap Android WebView'i OOM/process death'e sürükler (`ISS-008`, `ISS-014`) | Uzun first-render, artan RSS, frame jank, düşük bellek kill | 4 | 4 | 16 kritik | PDF lazy render, EPUB yoğunluğu, bounded cover cache, backup optimizasyonu; ayrılmış cihaz baseline/worker gerekir | 8 | Performance | Azaltılıyor; benchmark cihazı geldiğinde |
-| RSK-004 | Cihazlar arası LWW/silme eksikliği veriyi geri getirir veya ezer (`ISS-019`) | Aynı kitabı iki cihazda değiştir/sil; saat sapması; tekrarlanan kayıt | 4 | 4 | 16 kritik | `updatedAt` LWW ve yerel-first; tombstone, server timestamp, outbox/idempotency ve iki cihaz testi ekle | 6 | Sync/data | Açık; sync şema değişiminde |
-| RSK-005 | Hatalı Firestore rule/OAuth ayrımı başka hesaba veri erişimi verir (`RM-F-04`) | Emulator rule testi başarısız, UID/path uyuşmazlığı, geniş Drive scope | 3 | 5 | 15 yüksek | UID-scoped path, `drive.file`; deny-by-default rules, iki kullanıcı izolasyon testi ve rule CI gerekir | 5 | Security/sync | Açık; her rule/auth değişiminde |
+| RSK-004 | Cihazlar arası LWW/silme eksikliği veriyi geri getirir veya ezer (`ISS-019`) | Aynı kitabı iki cihazda değiştir/sil; saat sapması; tekrarlanan kayıt | 2 | 4 | 8 orta | `updatedAt` LWW + UID-scoped kalıcı tombstone, server delete timestamp alanı, Firestore prune/Drive retry kimliği ve ikinci-cihaz emülatör testi var; genel outbox, ack/TTL, saat sapması ve fiziksel cihaz testi ekle | 6 | Sync/data | Azaltılıyor; sync şema değişiminde |
+| RSK-005 | Hatalı Firestore rule/OAuth ayrımı başka hesaba veri erişimi verir (`RM-F-04`) | Emulator rule testi başarısız, UID/path uyuşmazlığı, geniş Drive scope | 2 | 5 | 10 yüksek | UID-scoped path, `drive.file`; deny-by-default rules ile anonim/çapraz UID/hesap tasfiye emülatör testi CI'a eklendi; gerçek token iptali ve OAuth scope kanıtı gerekir | 5 | Security/sync | Azaltılıyor; her rule/auth değişiminde |
 | RSK-006 | Release keystore veya servis secret'ı sızar (`ISS-013`) | Secret commit'i, CI logunda değer, paylaşılan keystore/parola | 2 | 5 | 10 yüksek | Env/secret politikası; managed signing, secret scan, rotasyon ve en az ayrıcalık ekle | 4 | Release/security | Açık; signing hattı kurulurken |
 | RSK-007 | Play Store gizlilik/Data Safety/AAB eksikleri yayını reddettirir | Pre-launch report/Play form uyuşmazlığı, hesap silme şartı, imzasız AAB | 4 | 4 | 16 kritik | Yayın kapıları; privacy policy, Data Safety, hesap tasfiyesi ve internal track dry-run tamamla | 6 | Release/privacy | Açık; her release adayı |
 | RSK-008 | Kritik/yüksek dependency açığı güvenli fix olmadan production'a taşınır | `npm audit`, GitHub advisory veya Android SDK bülteni | 4 | 4 | 16 kritik | Haftalık triage, önem SLA'sı, lock/override ve major kapıları; audit CI release kapısı ekle | 6 | Maintainer/security | Azaltılıyor; haftalık |
@@ -2826,7 +2851,7 @@ kanıtları ayrıdır.
 | RSK-011 | TalkBack/font ölçeği/reader erişilebilirlik kusuru temel okumayı engeller | Axe dışı manuel hata, focus kaybı, 200% font taşması | 3 | 4 | 12 yüksek | Web Axe/klavye/320px temeli; reader, TalkBack, font scaling ve reduced-motion matrisi tamamla | 6 | Accessibility/QA | Azaltılıyor; UI değişiminde |
 | RSK-012 | Büyük veya bozuk ZIP restore sırasında belleği tüketir ya da kısmi veri yazar (`ISS-014`) | Yüksek heap, iptal sonrası yarım kayıt, CRC/manifest hatası | 2 | 5 | 10 yüksek | CRC, preflight ve altı kaynak bütçesi var; streaming/worker ve gerçek cihaz drill ekle | 6 | Data/performance | Azaltılıyor; backup formatında |
 | RSK-013 | Firebase/Drive kesintisi, kota veya maliyet artışı sync'i durdurur (`RM-F-03`) | 429/5xx, quota dashboard uyarısı, geciken yükleme, maliyet sıçraması | 3 | 4 | 12 yüksek | Local-first çalışma ve resumable upload; backoff/outbox, kota bütçesi, alarm ve kullanıcı durumu ekle | 6 | Sync/operations | Açık; aylık maliyet/kota |
-| RSK-014 | Hesap kapatma uzak kullanıcı verisini bırakır (`ISS-020`) | Auth hesabı silinmiş ama Firestore/Drive kaydı var; silme talebi | 4 | 5 | 20 kritik | Production'da tamamlandı iddiası yok; idempotent tasfiye işi, retention SLA ve audit kaydı yayın öncesi zorunlu | 5 | Privacy/security | Açık; yayın engeli |
+| RSK-014 | Hesap kapatma uzak kullanıcı verisini bırakır (`ISS-020`) | Auth hesabı silinmiş ama Firestore/Drive kaydı var; silme talebi | 2 | 5 | 10 yüksek | Yeniden doğrulama → sync bariyeri → Firestore alt koleksiyonları → Drive klasörü → Auth sırası, idempotent silme ve kısmi hata UI'ı uygulandı; gerçek servis E2E, public URL, retention SLA ve audit kanıtı yayın öncesi zorunlu | 5 | Privacy/security | Azaltılıyor; yayın engeli sürüyor |
 | RSK-015 | Web production hataları merkezi gözlem olmadığı için geç bulunur (`ISS-010`) | Kullanıcı raporu var fakat correlation/log yok; E2E yeşil | 4 | 3 | 12 yüksek | Android Crashlytics mevcut; privacy-safe web error/health telemetry ve tanılama export'u ekle | 6 | Web/operations | Açık; web production öncesi |
 | RSK-016 | Tek maintainer/ajan bağlam kaybı kritik süreçleri sürdürülemez yapar | Belgelenmemiş manuel release, sahip olmayan risk, eski ana doküman | 3 | 4 | 12 yüksek | Ana belge, runbook, roadmap ID, Graphify ve CI; release/checklist dry-run ve ikincil reviewer ekle | 6 | Maintainer | Azaltılıyor; aylık belge review |
 | RSK-017 | Android/web/iOS kapsamı ayrışır ve ortak çekirdek parçalanır | Platforma özel fork, yalnız bir platformda veri/reader davranışı | 3 | 3 | 9 orta | Capability matrisi ve wrapper sınırı; platform farkını açık sözleşme/testle ekle | 4 | Architecture/product | İzleniyor; yeni native özellikte |
@@ -2859,7 +2884,7 @@ kanıtları ayrıdır.
 
 | ID | Sorun | Etki | Önem | Geçici çözüm | Durum/sahip | Hedef |
 |---|---|---|---|---|---|---|
-| ISS-001 | Gerçek otomatik ürün testleri yoktu | Regresyon ve veri kaybı geç fark edilirdi | Kritik | 79 Vitest + 2 Node ve 32 core/compat/responsive/visual/a11y Playwright senaryosu ile CI kapıları eklendi | Temel çözüldü / maintainer; kapsam sürekli genişletilmeli | Faz A |
+| ISS-001 | Gerçek otomatik ürün testleri yoktu | Regresyon ve veri kaybı geç fark edilirdi | Kritik | 96 Vitest + 2 Node ve 32 core/compat/responsive/visual/a11y Playwright senaryosu ile CI kapıları eklendi | Temel çözüldü / maintainer; kapsam sürekli genişletilmeli | Faz A |
 | ISS-002 | Web ve Android sürüm adı ayrışıktı | Yayın ve migration takibi belirsizdi | Yüksek | Android `versionName` artık `package.json` değerini okuyor | Çözüldü / maintainer; `versionCode` otomasyonu Faz D'de | Faz A |
 | ISS-003 | Production manifest cleartext trafiğe izin veriyordu | Güvenlik yüzeyi genişti | Yüksek | Main/release `false`, yalnız debug live-reload manifesti `true` | Çözüldü / Android | Faz A |
 | ISS-004 | PDF görsel vurgu overlay'i yok | Kullanıcı alıntıyı sayfada renkli göremez | Orta | NotesPanel'den sayfaya git | Kabul edilmiş / reader | Gelecek değerlendirme |
@@ -2876,12 +2901,12 @@ kanıtları ayrıdır.
 | ISS-015 | Tarayıcı destek matrisi otomatik değildi | Web regresyonu geç fark edilirdi | Orta | Beş Playwright profili + 10 masaüstü/mobil görsel durum CI'a eklendi | Temel çözüldü / QA; önceki major ve gerçek cihazlar açık | Faz A/C |
 | ISS-016 | Kitap metadata'sı var fakat file Blob yoksa veya bootstrap reddedilirse reader sonsuz spinner'da kalabilir | Kullanıcı kitabı açamaz ve nedenini göremez | Yüksek | `ReaderView` artık ayrı hata gösterip kütüphaneye dönüş sunuyor | Çözüldü / reader; `IT-READER-LOAD-001` geçti | Faz A |
 | ISS-017 | Production audit başlangıçta `epubjs`/`xmldom` ve Next.js PostCSS/Sharp zincirlerinde 5 bulgu veriyordu | Kötü amaçlı belge veya build girdisi güvenlik/DoS riski oluşturabilir | Yüksek | `xmldom 0.8.13` ve `sharp 0.35.3` override; gerçek EPUB/build testleri; untrusted CSS build'e alınmıyor | Kısmi azaltıldı / production 2 bulgu; Next PostCSS upstream bekliyor, dev araç zinciri ayrı izleniyor | Faz A |
-| ISS-018 | Sync şema/dependency değişikliği backup fixture sözleşmesiyle ayrışmıştı | Backup testleri geçici olarak 65/67'de kalmıştı | Yüksek | Güncel fixture/sözleşme hizalandı; tam `npm run check` 79/79 Vitest + 2/2 Node ile geçti | Çözüldü / sync-data | Faz F |
-| ISS-019 | Uzak silme tombstone'u ve pull-delete uzlaşması yok | Bir cihazda silinen kitap/not/yer imi başka cihazda kalabilir veya yeniden görünebilir | Yüksek | Yerel silme hemen tamamlanır; gerekirse Firestore/Drive'da yetkili manuel temizlik | Açık / sync-data | Faz F |
-| ISS-020 | Hesap kapatma, uzak veri tasfiyesi ve retention sözleşmesi uygulanmış değil | Kullanıcı hesabı silinse bile Firestore/Drive/diagnostik verisi kalabilir; privacy taahhüdü verilemez | Kritik | Production'da otomatik “tamamlandı” mesajı verme; doğrulanmış destek/operasyon süreci kullan | Açık / security-privacy | Faz F / yayın kapısı |
-| ISS-021 | EPUB/PDF/ZIP import kaynak bütçeleri eksikti | Sahte veya sıkıştırma bombası girdisi OOM/process death ve parser saldırısı üretebilir | Kritik | PDF/ZIP signature, 1 GiB kitap ceiling ve backup dış ZIP bütçeleri eklendi | Kısmi / reader-data-security; EPUB iç ZIP ve Android pre-read açık | Faz A/B |
+| ISS-018 | Sync şema/dependency değişikliği backup fixture sözleşmesiyle ayrışmıştı | Backup testleri geçici olarak 65/67'de kalmıştı | Yüksek | Güncel fixture/sözleşme hizalandı; tam `npm run check` 81/81 Vitest + 2/2 Node ile geçti | Çözüldü / sync-data | Faz F |
+| ISS-019 | Uzak silme tombstone'u ve pull-delete uzlaşması yoktu | Bir cihazda silinen kitap/not/yer imi başka cihazda kalabilir veya yeniden görünebilirdi | Yüksek | IndexedDB v5 UID-scoped tombstone, Firestore `serverDeletedAt`, live-record öncesi pull uzlaşması, descendant prune, Drive file ID retry ve eski ikinci-cihaz emülatör regresyonu eklendi | Temel çözüldü / sync-data; genel outbox, tombstone ack/TTL, saat sapması ve iki fiziksel cihaz ölçümü açık | Faz F |
+| ISS-020 | Hesap kapatma, uzak veri tasfiyesi ve retention sözleşmesi eksikti | Kullanıcı hesabı silinse bile Firestore/Drive/diagnostik verisi kalabilir; privacy taahhüdü verilemez | Kritik | Uygulama içi Auth + Firestore + Drive tasfiyesi, sync bariyeri, ayrı yerel seçim ve kısmi hata mesajı uygulandı; public URL, retention/telemetry ve gerçek servis E2E açık | Kısmi / security-privacy; istemci akışı tamamlandı, yayın kapısı sürüyor | Faz F / yayın kapısı |
+| ISS-021 | EPUB/PDF/ZIP import kaynak bütçeleri eksikti | Sahte veya sıkıştırma bombası girdisi OOM/process death ve parser saldırısı üretebilir | Kritik | PDF/ZIP signature, EPUB mimetype/iç bütçe, 1 GiB kitap ceiling, Android pre-read stat ve backup bütçeleri eklendi | Temel çözüldü / reader-data-security; native streaming/fuzz Faz B'de | Faz A/B |
 | ISS-022 | Production web hostu için CSP ve security header sözleşmesi yok; EPUB iframe'i Google Fonts'a çıkabilir | Origin/dependency compromise etkisi büyür ve okuma anı üçüncü tarafa sızabilir | Yüksek | HTTPS hosting; scripted EPUB kapalı; font fallback'i var | Açık / web-security | Faz C / yayın kapısı |
-| ISS-023 | Crashlytics'e gönderilen JS error message/stack için merkezi hassas veri redaction/consent/retention yok | URI, kitap adı, not/token/session bağlamı telemetriye sızabilir | Kritik | Kitap içeriğini loglamama geliştirici kuralı; web'de raporlama no-op | Açık / observability-privacy | Faz A / yayın kapısı |
+| ISS-023 | Crashlytics JS error payload'ında hassas veri ve collection kontrolü riski | URI, kitap adı, not/token/session bağlamı telemetriye sızabilir; kullanıcı collection seçemiyordu | Kritik | Redaction/limit + manifest default-off + cihaz-yerel açık opt-in/opt-out + unsent silme + 90 gün UX toplam 7/7 geçti; web no-op | Temel çözüldü / observability-privacy; gerçek Android ağ/Console kanıtı açık | Faz A / yayın kapısı |
 
 Yeni sorun eklerken kimlik, önem, kullanıcı etkisi, geçici çözüm, sahip ve hedef faz
 boş bırakılmamalıdır. “Sahip” kişi adı yerine sorumlu alan olabilir.
@@ -2943,10 +2968,10 @@ Yeni önerilerin roadmap dağılımı:
 | RM-A-10 | Yerel veri RPO/RTO hedefleri | A | Data/operations | S | Devam ediyor — geçici hedefler tanımlandı, ölçüm açık |
 | RM-A-11 | Reader eksik dosya/bootstrap hata durumunu sonlandırma | A | Reader/QA | S | Tamamlandı |
 | RM-B-01 | Gerçek performans baseline raporu | B | Performance | L | Ertelendi / ayrı test cihazı bekliyor |
-| RM-F-01 | Senkronizasyon state machine | F | Sync/data | M | Planlı |
-| RM-F-02 | Firestore ve Drive veri sözleşmesi | F | Sync/security | L | Planlı |
+| RM-F-01 | Senkronizasyon state machine | F | Sync/data | M | Devam ediyor — silme tombstone'u kalıcı; genel mutation outbox/backoff açık |
+| RM-F-02 | Firestore ve Drive veri sözleşmesi | F | Sync/security | L | Devam ediyor — tombstone yolu/alanları ve pull-delete uygulandı; tam şema sürümleme/ack/TTL açık |
 | RM-F-03 | Firebase/Drive maliyet ve kota modeli | F | Product/operations | M | Planlı |
-| RM-F-04 | Bulut tehdit modeli ve uzak veri yaşam döngüsü | F | Security/privacy | L | Devam ediyor — yaşam döngüsü hazır, tehdit/retention açık |
+| RM-F-04 | Bulut tehdit modeli ve uzak veri yaşam döngüsü | F | Security/privacy | L | Devam ediyor — hesap tasfiye istemcisi ve Firestore UID/rule emülatör kapısı hazır; gerçek servis/token iptali, public URL ve retention açık |
 | RM-F-05 | Senkron RPO/RTO ve kurtarma hedefleri | F | Sync/operations | M | Devam ediyor — geçici hedef/runbook hazır, kanıt açık |
 
 ### Faz A — Prototip sağlamlaştırma
@@ -3135,8 +3160,13 @@ Plan:
   edilmedi.
 - [x] Misafir modundan opsiyonel hesaba geçiş (kütüphane başlığındaki hesap
   butonu, zorunlu login duvarı yok).
-- [ ] Play Store gereksinimine uygun hesap silme; Firestore kullanıcı verisi ve
-  Drive uygulama klasörünü birlikte silme.
+- [x] Uygulama içi hesap silme: Google/e-posta yeniden doğrulaması; başlamış
+  senkronu drain edip yenisini engelleyen bariyer; kitapların
+  `highlights`/`bookmarks` alt koleksiyonları, `settings` ve kullanıcı kökü;
+  erişilebilir tüm Drive `Paperlike` klasörleri; en son Firebase Auth silme.
+  Yerel IndexedDB ayrı opt-in seçimidir ve kısmi başarısızlık ayrı bildirilir.
+- [ ] Play hesap silme yayın kapısı: gerçek Firebase/Drive hesabıyla Android ve
+  web E2E, public deletion URL, retention/telemetry kapsamı ve operasyon kanıtı.
 - [x] Firestore şeması ve **tek yönlü (cihaz → bulut) push** uygulandı ve
   **uçtan uca doğrulandı**: `lib/cloud-sync.ts` → `pushLibrarySnapshot(uid)`,
   `users/{uid}/books/{bookId}` (metadata + progress birleşik),
@@ -3168,9 +3198,12 @@ Plan:
   üzerine yazılıyor (push zaten aynı şekilde tam-anlık-görüntü). Pull
   metadata-only — kitabın dosyası Drive'dan **yalnızca okuyucu ilk açıldığında**
   indiriliyor (bkz. aşağıdaki "Yerelde olmayan kitabı indirme" maddesi).
-  **Bilinen v1 sınırı**: silme senkronize edilmiyor (tombstone/soft-delete
-  yok) — bir kitabı cihaz A'da silmek, cihaz B'de pull sırasında otomatik
-  silmiyor; doğru çözüm RM-F kapsamına bırakıldı.
+  Silme uzlaşması ayrıca uygulandı: `users/{uid}/tombstones/{id}` canlı
+  kayıtlardan önce çekiliyor; daha yeni kitap/vurgu/yer imi tombstone'u eski
+  yerel kaydı sessiz yerel helper'larla kaldırıyor, Firestore alt ağacını
+  prune ediyor ve kitap tombstone'u başarısız Drive silmesi için `driveFileId`
+  taşıyor. İkinci cihazın eski üç kayıt türünü geri getiremediği emülatörde
+  doğrulandı. Ack/TTL, genel outbox ve saat sapması hâlâ RM-F kapsamındadır.
 - [x] **Her mutasyon noktasına bağlandı**: `lib/storage.ts`'teki
   `addBook`/`updateBook`/`deleteBook`/`setProgress`/`addHighlight`/
   `updateHighlight`/`deleteHighlight`/`addBookmark`/`deleteBookmark`
@@ -3233,20 +3266,23 @@ Plan:
 - [ ] Vercel veya eşdeğer statik hosting ve özel domain.
 - [ ] Masaüstü ekran/mouse davranışları için web UX doğrulaması.
 - [ ] Web, Android ve gelecekte iOS uyumu.
-- [ ] **RM-F-01:** `local-only → queued → uploading → synced → conflict → retry
+- [ ] **RM-F-01:** Silme için IndexedDB `syncTombstones` kalıcı kuyruğu
+  uygulandı; diğer mutasyonlar için `local-only → queued → uploading → synced → conflict → retry
   → failed` durumlarını; idempotency, backoff ve kullanıcı mesajlarını içeren
   senkronizasyon state machine hazırlamak.
-- [ ] **RM-F-02:** Firestore collection/document alan tipleri, timestamp,
-  tombstone, conflict, security rule beklentisi, Drive klasör/dosya adı ve dosya
-  kimliği sözleşmesini sürümlemek.
+- [ ] **RM-F-02:** Firestore tombstone yolu, client/server delete zamanı ve
+  Drive retry kimliği uygulandı; collection/document alan tipleri, conflict,
+  ack/TTL, security rule beklentisi, Drive klasör/dosya adı ve dosya kimliği
+  sözleşmesini bütünüyle sürümlemek.
 - [ ] **RM-F-03:** Kullanıcı/kitap/değişiklik senaryolarına göre Firestore
   read-write, OAuth, Drive API kota ve beklenen operasyon maliyet modelini
   oluşturmak.
 - [x] **RM-F-04 yaşam döngüsü:** Firestore/Drive saklama, export, silme,
   retention ve hesap kapatma açıkları veri yaşam döngüsü matrisine eklendi.
-- [ ] **RM-F-04 tehdit/uygulama:** Token sızıntısı, hatalı Firestore rule, yetki
-  iptali, hesaplar arası veri sızıntısı; tombstone, hesap tasfiyesi ve retention
-  uygulamasını kapsayan bulut tehdit modelini tamamlamak.
+- [ ] **RM-F-04 tehdit/uygulama:** Hesap tasfiye istemcisi ile anonim/iki UID,
+  deny-by-default ve tasfiye emülatör kanıtı tamamlandı; token sızıntısı/iptali,
+  tombstone TTL/ack, public deletion yolu, retention ve gerçek servis kanıtlarını
+  tamamlamak.
 - [x] **RM-F-05 hedef/runbook:** Senkron kesintisi, çatışma, cihaz kaybı, eksik
   dosya ve uzak silme için geçici RPO/RTO hedefleri ve kurtarma yolları yazıldı.
 - [ ] **RM-F-05 kanıt:** Kötü ağ, kuyruk kaybı, saat sapması, iki cihaz ve hesap
@@ -3402,18 +3438,39 @@ Bu akış senkronizasyon özelliği uygulanınca geçerli olacaktır:
 
 ### 20.8 Hesap ve veri silme runbook'u
 
-Bu akış hesap sistemi uygulanınca:
+Uygulanan istemci akışı `lib/account-deletion.ts` tarafından şu sırayla yürütülür:
 
-1. Aktif kullanıcının kimliğini yeniden doğrula.
-2. Bekleyen senkron işlemlerini durdur.
-3. Firestore'daki kullanıcı ağacını kontrollü ve tekrar çalıştırılabilir biçimde
-   sil.
-4. Google Drive uygulama klasörü/dosyalarını kullanıcı onayındaki kapsama göre sil.
-5. Auth hesabını en son sil.
-6. Yerel IndexedDB'nin silinip silinmeyeceğini kullanıcıya ayrı seçenek olarak
-   açıkla.
-7. Başarı/başarısızlık ve kalan veri kapsamını kullanıcıya göster.
-8. Yasal/operasyonel saklama kaydı gerekiyorsa kitap/not içeriği olmadan tut.
+1. UI iki aşamalı geri döndürülemez işlem onayı alır. Yerel IndexedDB temizliği
+   uzak veri silmeden ayrı, varsayılanı kapalı bir seçimdir.
+2. Google kullanıcı tekrar hesap seçerek ve alınan ID token ile
+   `reauthenticateWithCredential`; e-posta kullanıcısı mevcut parola ile
+   `EmailAuthProvider.credential` üzerinden yeniden doğrulanır. Dönen UID aktif
+   UID ile eşleşmezse veri silinmez.
+3. `pauseSyncForAccountDeletion(uid)` yeni sync işini reddeder ve başlamış
+   işlemleri settle olana kadar bekler. Auth silinmeden hata olursa bariyer
+   kaldırılır ve aynı hesapla retry mümkündür.
+4. `users/{uid}/books` listelenir; her kitap için `highlights` ve `bookmarks`
+   alt koleksiyonları batch'lerle silinir. Ardından kitaplar, bütün `settings`
+   ve `tombstones` belgeleri ile varsa `users/{uid}` kök belgesi silinir.
+   Olmayan belge başarıdır; adım tekrar çalıştırılabilir.
+5. Google hesapta `drive.file` ile erişilebilen bütün görünür `Paperlike`
+   klasörleri silinir; klasör silme içeriğini de kaldırır. 404 başarı, diğer
+   hatalar mevcut `DriveSyncError` sınıflandırmasıyla korunur. E-posta-only
+   hesapta Drive adımı uygulanamaz ve no-op'tur.
+6. Önceki uzak adımlar tamamlanmadan Auth silinmez. Firebase JS
+   `deleteUser(currentUser)` başarılı olduktan sonra native/JS oturumları
+   best-effort temizlenir; UI ancak bu noktadan sonra uzak hesabı silinmiş sayar.
+7. Kullanıcı ayrıca seçtiyse sekiz IndexedDB store'u temizlenir, kapak cache'i
+   sıfırlanır ve kitaplık misafir durumunda yenilenir. Bu adım Auth'tan sonra
+   başarısız olursa sonuç “uzak silindi, yerel kaldı” olarak gösterilir.
+8. `AccountDeletionError.stage` yeniden doğrulama, Firestore, Drive veya Auth
+   kırılmasını ayırır. UI kalan kapsamı açıkça söyler; uçtan uca uzak zincir
+   tamamlanmadan genel “hesap silindi” mesajı göstermez.
+
+Production yayın kapısı için ayrıca gerçek Google ve e-posta hesaplarında web +
+Android E2E kaydı, public hesap silme URL'si, aktif/backup retention onayı ve
+diagnostik veri tasfiye sözleşmesi gerekir. Operasyon kaydı kitap/not içeriği,
+token, e-posta veya dosya adı taşımamalıdır.
 
 ### 20.9 Operasyon kanıtı şablonu
 
@@ -3809,6 +3866,11 @@ güvenli biçimde ulaşmayı sağlamaktır.
 | `1.24` | 2026-07-31 | `797a2e5` + çalışma ağacı | Güncel resmi Google Play/Firebase/Drive kaynaklarına bağlı veri işleme envanteri, muhafazakâr Data Safety aday cevapları, yayın politikası taslağı ve 10 maddelik yayın checklist'i eklendi. Hesap silme, Crashlytics/Analytics, Google Fonts, Auto Backup ve şifrelenmemiş export davranışı açıkça modellendi; kimlik/iletişim/hedef kitle/retention placeholder'ları yayın engeli bırakıldı. |
 | `1.25` | 2026-07-31 | `797a2e5` + çalışma ağacı | Telefon yatay, tablet dikey/yatay ve foldable-benzeri dört Chromium profilinde kritik kütüphane kontrolleri, yatay taşma, dialog ve çalışma anı yön değişimi CI katmanı eklendi; production statik export üzerinde 8/8 geçti. ISS-011 ve RSK-010 web kanıtıyla azaltıldı; fiziksel hinge/posture/OEM doğrulaması açık bırakıldı. Graphify 28.625 node/71.242 edge/799 community ile yenilendi. |
 | `1.26` | 2026-07-31 | `797a2e5` + çalışma ağacı | Parser öncesi PDF/ZIP signature ve 1 GiB kitap ceiling; backup restore için 4 GiB arşiv, 10.000 entry, 1 GiB entry, 8 GiB açılmış toplam, 32 MiB manifest, 500:1 oran ve manifest-gerçek entry boyutu preflight'ı eklendi. Güvenlik hedefli 23/23 ve tam `npm run check` 79/79 Vitest + 2/2 Node ile geçti; ISS-018 çözüldü, ISS-021 EPUB iç ZIP/Android pre-read için kısmi kaldı. |
+| `1.27` | 2026-07-31 | `797a2e5` + çalışma ağacı | EPUB parser öncesine zorunlu `mimetype`, 10.000 entry, 512 MiB entry, 4 GiB açılmış toplam ve 500:1 oran bütçesi; Android VIEW/SEND akışına provider stat tabanlı base64 read-öncesi 1 GiB kontrol eklendi. Eksik mimetype ve sıkıştırma bombası testleriyle tam `npm run check` 81/81 + 2/2, production build ve core E2E 5/5 geçti; ISS-021 temel kapsamda çözüldü. |
+| `1.28` | 2026-07-31 | `5279ac3` + çalışma ağacı | Crashlytics'e iletilen JS message/stack için URL, dosya/content URI, e-posta, bearer/JWT/Google tokenı, query secret, uzun secret ve tırnak içi kullanıcı metni redaction'ı; 512/4096 karakter limitleri eklendi. SEC-LOG-001 redaction 2/2 ve tam `npm run check` 83/83 + 2/2 geçti; consent/retention UX'i ISS-023 altında açık kaldı. Graphify 28.652 node/71.296 edge/804 community ile yenilendi. |
+| `1.29` | 2026-07-31 | `5279ac3` + çalışma ağacı | ISS-020/RSK-014 istemci azaltımı uygulandı: iki aşamalı ve yerel veriden ayrı onay, Google/e-posta yeniden doğrulama, sync drain/blok bariyeri, Firestore alt koleksiyonlarını batch tasfiye, bütün erişilebilir Drive `Paperlike` klasörlerini silme, Auth-last sırası ve aşama bazlı kısmi sonuç eklendi. `SEC-ACCOUNT-DELETE-001` 5/5, `SEC-SYNC-PAUSE-001` 1/1 ve tam `npm run check` 91/91 Vitest + 2/2 Node geçti; gerçek servis E2E, public URL, retention/telemetry yayın kapısı açık kaldı. Graphify 28.702 node/71.402 edge/801 community ile yenilendi. |
+| `1.30` | 2026-07-31 | `5279ac3` + çalışma ağacı | ISS-023 temel azaltımı tamamlandı: Crashlytics manifest default-off, cihaz-yerel açık opt-in/opt-out, JS handler gate, native collection override, opt-out'ta unsent-report silme ve 90 günlük retention/restart açıklaması eklendi. `SEC-LOG-001` toplam 7/7, tam `npm run check` 96/96 Vitest + 2/2 Node ve `:app:compileDebugJavaWithJavac` geçti; Firebase Analytics consent'i ve gerçek release cihazı ağ/Console kanıtı ayrı açık bırakıldı. Graphify 28.717 node/71.438 edge/788 community ile yenilendi. |
+| `1.31` | 2026-07-31 | `5279ac3` + çalışma ağacı | Firestore Rules Unit Testing ve emülatör CI kapısı eklendi; anonim erişim reddi, sahip erişimi, iki UID izolasyonu, bilinmeyen üst koleksiyon reddi ve production hesap-tasfiye helper'ı 4/4 geçti. Tam kalite paketi 96/96 Vitest + 2/2 Node geçti; `RSK-005` 15'ten 10'a düşürüldü, gerçek token iptali/servis kanıtı açık bırakıldı. Dependency taraması production'da 2, geliştirme zinciri dahil 35 bulguyu kaydetti. Graphify 28.738 node/71.459 edge/805 community ile yenilendi. |
 
 ### Changelog kuralı
 

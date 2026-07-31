@@ -135,6 +135,26 @@ export interface Bookmark {
   /** Chapter label or "Sayfa N", snapshotted at creation time. */
   label: string;
   createdAt: number;
+  /** Last local write, used to keep an older delete tombstone from hiding a newer bookmark. */
+  updatedAt?: number;
+}
+
+export type SyncTombstoneEntity = "book" | "highlight" | "bookmark";
+
+/**
+ * A durable, account-scoped deletion marker. It remains after the local
+ * record is removed so an offline deletion cannot be resurrected by another
+ * device's older snapshot on the next sync.
+ */
+export interface SyncTombstone {
+  id: string;
+  uid: string;
+  entity: SyncTombstoneEntity;
+  bookId: string;
+  itemId?: string;
+  /** Retained on a book tombstone until Drive cleanup can be retried. */
+  driveFileId?: string;
+  deletedAt: number;
 }
 
 /** One day's reading time, local calendar date (YYYY-MM-DD). */

@@ -6,7 +6,9 @@ rules_version = '2';
 //   users/{uid}                              — profile-level doc (currently unused, reserved)
 //   users/{uid}/books/{bookId}                — book metadata + progress
 //   users/{uid}/books/{bookId}/highlights/{id}
+//   users/{uid}/books/{bookId}/bookmarks/{id}
 //   users/{uid}/settings/{docId}
+//   users/{uid}/tombstones/{id}               — account-scoped delete reconciliation
 //
 // A signed-in user may only ever read/write documents under their own
 // users/{uid} subtree — there is no cross-user sharing feature, so anything

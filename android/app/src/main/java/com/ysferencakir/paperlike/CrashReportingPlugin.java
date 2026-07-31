@@ -18,10 +18,27 @@ import com.google.firebase.crashlytics.FirebaseCrashlytics;
 public class CrashReportingPlugin extends Plugin {
 
     @PluginMethod
+    public void setCollectionEnabled(PluginCall call) {
+        boolean enabled = Boolean.TRUE.equals(call.getBoolean("enabled", false));
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
+        crashlytics.setCrashlyticsCollectionEnabled(enabled);
+        if (!enabled) {
+            // With automatic collection disabled, reports otherwise remain on
+            // the device and could be uploaded by a later opt-in.
+            crashlytics.deleteUnsentReports();
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
     public void recordException(PluginCall call) {
         String message = call.getString("message", "Unknown error");
         String stack = call.getString("stack", "");
         FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
+        if (!crashlytics.isCrashlyticsCollectionEnabled()) {
+            call.resolve();
+            return;
+        }
         if (!stack.isEmpty()) {
             crashlytics.log(stack);
         }

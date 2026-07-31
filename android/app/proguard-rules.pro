@@ -20,3 +20,13 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# @capacitor-firebase/authentication ships an optional Facebook Sign-In
+# handler (FacebookAuthProviderHandler) that references the Facebook Login
+# SDK's classes. We don't use Facebook Sign-In and don't depend on that SDK,
+# so R8 can't resolve these classes at minify time and fails the release
+# build outright. The handler's code path is never reached at runtime (no
+# Facebook provider is registered), so silencing the reference is safe —
+# no -keep needed, just stop R8 from treating the unresolved reference as
+# a hard error.
+-dontwarn com.facebook.**

@@ -3,6 +3,7 @@
 // callers don't need to check Capacitor.isNativePlatform() themselves.
 
 import type { Translate } from "./i18n/useTranslation";
+import { sanitizeCrashPayload } from "./error-redaction";
 
 interface ImmersivePlugin {
   hide(): Promise<void>;
@@ -243,10 +244,14 @@ export async function shareFile(blob: Blob, filename: string, title: string): Pr
 interface CrashReportingPlugin {
   recordException(options: { message: string; stack: string }): Promise<void>;
   log(options: { message: string }): Promise<void>;
+  setCollectionEnabled(options: { enabled: boolean }): Promise<void>;
 }
 
 let crashReportingPlugin: CrashReportingPlugin | null = null;
 let crashReportingInit: Promise<void> | null = null;
+// Privacy-safe process default. The persisted user preference is applied by
+// CrashReportingHandler during client startup.
+let crashReportingCollectionEnabled = false;
 
 async function initCrashReporting(): Promise<void> {
   const { Capacitor, registerPlugin } = await import("@capacitor/core");
@@ -255,13 +260,26 @@ async function initCrashReporting(): Promise<void> {
     : null;
 }
 
-/** Sends a JS-side error to Crashlytics. No-op on the web. */
-export async function recordException(error: unknown): Promise<void> {
+/**
+ * Applies the explicit local opt-in to native Crashlytics. Disabling also
+ * asks the native SDK to discard unsent reports; Firebase applies the
+ * automatic-collection override fully on the next app launch.
+ */
+export async function setCrashReportingCollectionEnabled(enabled: boolean): Promise<void> {
+  crashReportingCollectionEnabled = enabled;
   if (!crashReportingInit) crashReportingInit = initCrashReporting();
   await crashReportingInit;
   if (!crashReportingPlugin) return;
-  const message = error instanceof Error ? error.message : String(error);
-  const stack = error instanceof Error ? (error.stack ?? "") : "";
+  await crashReportingPlugin.setCollectionEnabled({ enabled });
+}
+
+/** Sends a JS-side error to Crashlytics. No-op on the web. */
+export async function recordException(error: unknown): Promise<void> {
+  if (!crashReportingCollectionEnabled) return;
+  if (!crashReportingInit) crashReportingInit = initCrashReporting();
+  await crashReportingInit;
+  if (!crashReportingPlugin) return;
+  const { message, stack } = sanitizeCrashPayload(error);
   await crashReportingPlugin.recordException({ message, stack });
 }
 

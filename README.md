@@ -41,7 +41,7 @@ stratejisi, bilinen sorunlar ve ayrıntılı yol haritası için:
 ### Kütüphane
 
 - EPUB/PDF içe aktarma ve metadata/kapak çıkarma
-- Parser öncesi PDF/ZIP imzası ve 1 GiB güvenlik tavanı
+- Parser öncesi PDF/ZIP imzası, EPUB mimetype/iç ZIP bütçeleri ve 1 GiB güvenlik tavanı
 - Grid, liste ve üç boyutlu raf görünümü
 - Arama, sıralama, biçim filtresi ve basit kategori
 - Yeniden adlandırma, bilgi görüntüleme ve ilişkili verilerle silme
@@ -64,6 +64,7 @@ stratejisi, bilinen sorunlar ve ayrıntılı yol haritası için:
 - “Birlikte aç”/“Paylaş” intent'leri
 - Okumaya devam et kısayolu ve ana ekran widget'ı
 - Yerel bildirim ve Firebase Crashlytics
+- Crashlytics JS hata payload'ında URL/yol/e-posta/token redaction ve boyut sınırı
 
 ### Web/PWA
 
@@ -111,7 +112,7 @@ PWA görsel referansları: [`docs/visual-references/`](./docs/visual-references/
 | Büyük kitap optimizasyonu | Kısmi; PDF lazy rendering, kontrollü arama, backup/restore ve kapak LRU/thumbnail optimizasyonu mevcut |
 | Google Play production dağıtımı | Planlı |
 | Koleksiyonlar/etiketler | Planlı |
-| Bulut senkronizasyonu | Firestore push/pull ve Drive upload/tembel download mevcut; silme tombstone'u ve dayanıklı genel retry kuyruğu planlı |
+| Bulut senkronizasyonu | Firestore push/pull, UID-scoped kitap/vurgu/yer imi tombstone'u ve Drive upload/tembel download mevcut; genel outbox/backoff ve tombstone TTL/ack planlı |
 | iOS | Planlı |
 
 ## Teknik yığın
@@ -159,6 +160,7 @@ Tarayıcıda `http://localhost:3000` adresini açın.
 | `npm run test:responsive` | Telefon yatay, tablet ve foldable-benzeri responsive matris |
 | `npm run test:a11y` | WCAG A/AA, klavye/focus ve 320 px reflow matrisi |
 | `npm run test:visual` | Sürümlü PWA masaüstü/mobil görsel regresyonu |
+| `npm run test:firestore-rules` | Firestore emülatöründe UID izolasyonu, hesap tasfiyesi ve iki-cihaz tombstone uzlaşması |
 | `npm run benchmark:web` | Mevcut `out/` üzerinde web performans benchmarkı |
 | `npm run benchmark:web:build` | Production build + web performans benchmarkı |
 | `npm run benchmark:android:assemble` | Android benchmark hedef APK'larını derler |

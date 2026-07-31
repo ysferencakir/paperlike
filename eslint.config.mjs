@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // Generated native project output — not source, and "build/**" above
     // only matches a top-level dir, not android/app/build.
     "android/**",
+    // Parallel-agent worktrees are separate repositories, not root-project source.
+    ".claude/**",
     // Vendored, pre-minified worker script (pdf.js) — not our source.
     "public/pdf.worker.min.mjs",
   ]),

@@ -1,5 +1,7 @@
 apply plugin: 'com.android.application'
 
+def packageMetadata = new groovy.json.JsonSlurper().parse(rootProject.file('../package.json'))
+
 android {
     namespace = "com.ysferencakir.paperlike"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -8,7 +10,7 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName packageMetadata.version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -17,6 +19,11 @@ android {
         }
     }
     buildTypes {
+        benchmark {
+            initWith release
+            signingConfig signingConfigs.debug
+            matchingFallbacks = ['release']
+        }
         release {
             minifyEnabled true
             shrinkResources true
@@ -44,6 +51,7 @@ dependencies {
     implementation platform('com.google.firebase:firebase-bom:34.5.0')
     implementation 'com.google.firebase:firebase-crashlytics'
     implementation 'com.google.firebase:firebase-analytics'
+    implementation 'androidx.profileinstaller:profileinstaller:1.4.1'
 }
 
 apply from: 'capacitor.build.gradle'

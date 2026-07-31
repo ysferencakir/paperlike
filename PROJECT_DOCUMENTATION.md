@@ -17,19 +17,19 @@
 | Desteklenen kitap biçimleri | EPUB ve PDF |
 | Ana veri modeli | Yerel ve çevrimdışı öncelikli |
 | Web paket sürümü | `0.1.0` |
-| Android sürümü | `versionCode 1`, `versionName 1.0` |
+| Android sürümü | `versionCode 1`, `versionName 0.1.0` (`package.json` kaynaklı) |
 | Lisans | MIT |
-| Son kapsamlı güncelleme | 30 Temmuz 2026 |
-| Belge sürümü | `1.11` |
+| Son kapsamlı güncelleme | 31 Temmuz 2026 |
+| Belge sürümü | `1.13` |
 | Belge durumu | Aktif ana kaynak |
 | Belge sahibi | Proje sahibi/aktif maintainer |
 | Son doğrulanan branch | `main` |
-| Son doğrulanan baz commit | `78d2e68` |
-| Doğrulama kapsamı | Baz commit + benchmark tamamlama değişiklikleri; eşzamanlı Firebase/Drive çalışma ağacı hariç |
-| Kod grafiği | Graphify — 26.223 node, 63.160 edge, 639 community; ayrıntı `graphify-out/GRAPH_REPORT.md` |
+| Son doğrulanan baz commit | `797a2e5` |
+| Doğrulama kapsamı | Baz commit + Android Macrobenchmark ve raporlama çalışma ağacı |
+| Kod grafiği | Graphify — 28.480 node, 70.947 edge, 778 community; ayrıntı `graphify-out/GRAPH_REPORT.md` |
 
-> **Sürüm uyarısı:** `package.json` ile Android sürüm değerleri birbiriyle uyumlu
-> değildir. İlk gerçek dağıtımdan önce tek bir sürümleme politikası belirlenmelidir.
+> **Sürüm notu:** Web ve Android `versionName` için tek kaynak `package.json`
+> değeridir. Play yayını öncesinde `versionCode` otomasyonu ayrıca tamamlanmalıdır.
 
 ### Belge doğrulama protokolü
 
@@ -59,12 +59,12 @@ sonraki dosya durumuna göre doğrulandığını açıkça söylemelidir.
 | PDF okuyucu çekirdeği | Mevcut/kısmi | Okuma, arama, zoom ve not var; görsel vurgu overlay'i yok |
 | Yerel veri ve backup | Mevcut/iyileştirilmiş | IndexedDB + ZIP; Blob/STORE optimizasyonu, ilerleme, iptal, CRC ve ön doğrulama var; gerçek cihaz tepe belleği ölçülmedi |
 | Android sistem entegrasyonu | Mevcut | Intent, widget, shortcut, bildirim, TTS, immersive, Crashlytics |
-| Web ürünü | Mevcut PWA prototipi | Statik export, manifest, service worker ve offline app shell var; web deploy/güncelleme UX'i eksik |
-| Erişilebilirlik/i18n | Kısmi doğrulanmış | TR/EN ve TalkBack temeli var; tam otomasyon/matris yok |
-| Otomatik test | Aktif temel | 43 Vitest testi, 3 Playwright E2E senaryosu ve web CI kalite kapısı var; kapsam genişletilmeli |
+| Web ürünü | Mevcut PWA prototipi | Statik export, manifest, offline app shell ve kullanıcı onaylı cache güncellemesi var; install/quota UX'i eksik |
+| Erişilebilirlik/i18n | Kısmi doğrulanmış | TR/EN, belge dili senkronu ve TalkBack temeli var; tam otomasyon/matris yok |
+| Otomatik test | Aktif temel | 48 Vitest testi, 2 Android raporlayıcı testi, 3 Playwright E2E senaryosu ve web CI kalite kapısı var; kapsam genişletilmeli |
 | Büyük kitap performansı | Kısmi | PDF lazy page rendering, belge yeniden kullanımı ve EPUB konum yoğunluğu politikası var; gerçek cihaz baseline'ı gerekli |
 | Google Play yayını | Planlı | AAB, imzalama, mağaza süreci ve in-app update eksik |
-| Bulut senkronizasyonu | Auth UI hazır, senkron yok | Firebase Console + giriş/kayıt ekranı tamam; Firestore kuralları, gerçek veri senkronu ve Drive yok |
+| Bulut senkronizasyonu | Tek yönlü/kısmi | Auth, cihazdan Firestore'a push ve Drive upload/silme doğrulandı; pull, Drive download ve çatışma kuyruğu eksik |
 | Koleksiyonlar/etiketler | Planlı | Bugün yalnızca tek serbest metin kategorisi var |
 | iOS | Planlı | `ios/` projesi henüz yok |
 
@@ -90,19 +90,16 @@ tahminidir. Her sürüm planında test kanıtlarıyla yeniden değerlendirilmeli
 
 1. Android native sistem akışlarının gerçek cihaz/otomasyon matrisinin eksikliği.
 2. Büyük EPUB/PDF dosyaları için ölçülmüş performans sınırlarının olmaması.
-3. Web `0.1.0` ile Android `1.0` sürüm bilgilerinin ayrışması.
-4. Release signing, AAB ve Play Store dağıtım hattının bulunmaması.
-5. Gizlilik politikası ve Data Safety doğrulamasının tamamlanmamış olması.
-6. Production manifestte cleartext trafiğin açık olması.
-7. Kalan production PostCSS bildirimi ve dev-tool bağımlılık risklerinin upstream
+3. Release signing, AAB ve Play Store dağıtım hattının bulunmaması.
+4. Gizlilik politikası ve Data Safety doğrulamasının tamamlanmamış olması.
+5. Kalan production PostCSS bildirimi ve dev-tool bağımlılık risklerinin upstream
    çözümlerinin beklenmesi.
 
 ### 0.4 Sıradaki önerilen üç iş
 
 1. Yeni kalite kapılarını GitHub Actions'ta ilk remote run ile doğrulamak.
-2. Sürümleme + release signing politikasını karara bağlamak.
-3. Büyük dosya optimizasyonlarını gerçek Android cihazda p50/p95 ve tepe bellek
-   ölçümleriyle doğrulamak.
+2. Release signing, `versionCode` ve AAB politikasını karara bağlamak.
+3. PWA install/storage UX'i veya iki yönlü bulut pull akışını tamamlamak.
 
 ---
 
@@ -722,7 +719,6 @@ Paperlike iki farklı kalıcılık mekanizması kullanır:
 | `useAuthStore` | Hayır | Kısmi Firebase auth kullanıcı/başlatılma state'i ve auth komutları |
 | `useToastStore` | Hayır | Geçici toast kuyruğu |
 | `useBackHandlerStore` | Hayır | Android geri tuşu handler yığını |
-| `useSecurityStore` | Evet fakat pasif | Devre dışı biyometrik deneyin kalan state'i |
 
 ### 8.2 IndexedDB şeması
 
@@ -1361,18 +1357,15 @@ Sürekli kaydırma modunda bu sayfalanmış geçiş metaforları devre dışı k
 
 ### 13.4 Biyometrik kilit kararı
 
-Biyometrik kilit uygulanmış, cihaz güvenliği fallback'i ve başarısız denemelerden
-sonra kaçış yolu eklenmiş; buna rağmen gerçek cihazda kullanıcıyı uygulamadan
-kilitleme riski devam etmiştir.
+Biyometrik kilit denenmiş; cihaz güvenliği fallback'i ve kaçış yoluna rağmen
+gerçek cihazda kullanıcıyı uygulamadan kilitleme riski devam etmiştir.
 
 Güncel karar:
 
 - Özellik arayüzden kaldırılmıştır.
-- `BiometricLockGate` root layout'ta render edilmez.
-- `useSecurityStore` ve ilgili kod kalıntıları pasiftir.
+- `BiometricLockGate`, `useSecurityStore`, çeviri anahtarları ve
+  `@aparajita/capacitor-biometric-auth` bağımlılığı kaldırılmıştır.
 - Güvenilirlik gerekçesiyle özellik tekrar denenmeyecektir.
-- Gelecekte kod temizliği yapılırken pasif dosyalar kontrollü biçimde
-  kaldırılabilir.
 
 Bu karar, kullanıcı verisine erişimi tamamen engelleyebilecek bir güvenlik
 özelliğinin “çalışıyor gibi” sunulmaması ilkesinin örneğidir.
@@ -1486,12 +1479,24 @@ kapsar:
     uygundur. Yapısal bütçeler her ortamda kapıdır; gürültülü paylaşımlı CI'da
     süre aşımları uyarıdır. Kalibre runner'da `BENCHMARK_ENFORCE_TIMINGS=1`
     süre bütçelerini de kapı yapar.
+23. Ayrı Android `:benchmark` modülü release build'den türetilmiş, debug key ile
+    imzalanmış ve yalnız benchmark varyantında `profileable` hedef üretir.
+24. `coldStartup`, AndroidX `StartupTimingMetric` ile soğuk açılışı ölçer.
+    `mediumPdfReaderFramesAndMemory`, Android `PdfDocument` ile deterministik
+    120 sayfalık fixture üretir; FileProvider ve gerçek `ACTION_VIEW` intent'i
+    üzerinden native import akışını çalıştırdıktan sonra okuyucu swipe'larında
+    `FrameTimingMetric` ve maksimum `MemoryUsageMetric` toplar.
+25. AndroidX'in ham `benchmarkData.json` ve Perfetto trace'leri korunur.
+    `scripts/android-benchmark-report.mjs` desteklenen süre, frame ve bellek
+    metriklerini web ile aynı `schemaVersion: 1` JSON/Markdown sözleşmesine
+    dönüştürür.
 
 ### 15.4 Kalan yaklaşım
 
 1. Sentetik süre bütçeleri farklı CI koşularından baseline biriktirildikten sonra
    kalibre edilmeli ve süre kapısı için sabit runner seçilmelidir.
-2. Gerçek Android cihazlarda p50/p95, tepe bellek ve uzun frame ölçülmelidir.
+2. Hazır Macrobenchmark paketi yalnız ayrılmış/silinebilir bir fiziksel test
+   cihazı edinildiğinde çalıştırılıp ilk kabul edilmiş baseline yayınlanmalıdır.
 3. EPUB ilk sayfa ve tam metin arama metrikleri web benchmarkına eklenmelidir.
 4. Kalıcı/tembel arama indeksleri değerlendirilmelidir.
 5. Import gibi kalan uzun işlemler ilerleme ve iptal desteği vermelidir.
@@ -1526,6 +1531,9 @@ kapsar:
 | `npm run test:e2e:ui` | Playwright görsel test arayüzü |
 | `npm run benchmark:web` | Mevcut `out/` üzerinde orta profil, yerelde 3 iterasyon benchmark |
 | `npm run benchmark:web:build` | Production build + web benchmark |
+| `npm run benchmark:android:assemble` | Web sync + release-derived benchmark APK derlemesi |
+| `npm run benchmark:android` | Varsayılan olarak bloklu; yalnız ayrılmış cihazda `PAPERLIKE_ALLOW_DEVICE_BENCHMARK=dedicated-test-device` ile Macrobenchmark |
+| `npm run benchmark:android:report` | Son AndroidX ham sonucunu ortak JSON/Markdown rapora dönüştürme |
 | `npm run check` | Lint + type-check + bütün otomatik testler |
 | `npm run cap:sync` | Web build + Android Capacitor sync |
 | `npm run android:open` | Android Studio'da projeyi açma |
@@ -1587,10 +1595,23 @@ bulmaya çalışır. Geliştirme cihazı ve bilgisayar aynı ağda olmalıdır.
 - Aynı ref için eski çalışmayı iptal eden concurrency ayarı ve salt-okunur
   `contents` izni kullanır.
 
+`.github/workflows/android-benchmark.yml`:
+
+- Yalnız manuel tetiklenir ve `[self-hosted, android-benchmark]` etiketli,
+  maintainer kontrollü fiziksel cihaz runner'ı gerektirir.
+- İterasyon sayısını girdi olarak alır; süre/bellek bütçeleri kalibre edilene
+  kadar isteğe bağlı enforcement uygular.
+- Ortak JSON/Markdown raporunu ayrı, AndroidX ham JSON ve Perfetto trace'lerini
+  ayrı artifact olarak saklar.
+- Emülatör sonucunu release baseline'ı gibi göstermemek için standart GitHub
+  runner'ında çalışmaz.
+
 ### 16.6 CI kapsam boşlukları
 
 - Reader surface çeşitliliği, arama/not ve geniş PWA güncelleme matrisi eksik.
 - Android cihaz/emülatör test adımı yok.
+- Fiziksel benchmark runner'ı henüz projeye bağlanmadığı için gerçek Android
+  baseline raporu üretilmedi.
 - Yeni web workflow'u remote GitHub Actions üzerinde ilk push/PR sonrasında
   ayrıca doğrulanmalıdır.
 - CI henüz production bağımlılık audit'ini kapı yapmıyor; `ISS-017`
@@ -1743,7 +1764,11 @@ senaryolarını temsil etmez.
 
 | Test/kapı | Kanıt | Son sonuç | Ortam | Baz | Tarih |
 |---|---|---|---|---|---|
-| Vitest toplamı | 16 test dosyası | **Geçti — 45/45** | Windows, Node `24.15.0`, jsdom/node/fake-indexeddb | `78d2e68` + çalışma ağacı | 2026-07-30 |
+| Vitest toplamı | 18 test dosyası | **Geçti — 48/48** | Windows, Node `24.15.0`, jsdom/node/fake-indexeddb | `797a2e5` + çalışma ağacı | 2026-07-31 |
+| `UT-DOCUMENT-LOCALE-001` | `components/DocumentLocaleSync.test.tsx` | **Geçti — 1/1** | Windows, jsdom | `797a2e5` + çalışma ağacı | 2026-07-31 |
+| `UT-PWA-UPDATE-001` | `components/PwaRegistrar.test.tsx` | **Geçti — 2/2; onayla/ertele** | Windows, jsdom + fake service worker | `797a2e5` + çalışma ağacı | 2026-07-31 |
+| `UT-ANDROID-REPORT-001` | `scripts/android-benchmark-report.node-test.mjs` | **Geçti — 2/2** | Windows, Node `24.15.0` | `797a2e5` + çalışma ağacı | 2026-07-31 |
+| Android manifest ayrımı | Gradle `processReleaseMainManifest` + `processDebugMainManifest` | **Geçti — release cleartext false, debug true; versionName 0.1.0** | Android Gradle Plugin 8.13, Gradle 8.14.3 | `797a2e5` + çalışma ağacı | 2026-07-31 |
 | `IT-READER-LOAD-001` | `components/reader/useReaderBootstrap.test.ts` | **Geçti — 6/6** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-STORAGE-001` | `lib/storage.test.ts` | **Geçti — 1/1** | Windows, fake-indexeddb | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-BACKUP-*` | `lib/backup.test.ts` | **Geçti — 7/7** | Windows, fake-indexeddb + 3 MiB binary fixture | `05cda45` + çalışma ağacı | 2026-07-30 |
@@ -1759,13 +1784,13 @@ senaryolarını temsil etmez.
 | `UT-SEARCH-CONTROL-001` | `lib/search-control.test.ts` | **Geçti — 3/3** | Windows, Node | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-EPUB-SEARCH-001` | `lib/epub-search.test.ts` | **Geçti — 2/2** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
 | `IT-SEARCH-PANEL-001` | `components/reader/SearchPanel.test.tsx` | **Geçti — 2/2** | Windows, jsdom | `05cda45` + çalışma ağacı | 2026-07-30 |
-| `E2E-W-READER-001` | `e2e/library-reader-progress.spec.ts` | **Geçti — 1/1** | Chromium, production statik export | `05cda45` + çalışma ağacı | 2026-07-30 |
-| `E2E-W-PWA-001` | `e2e/pwa-offline.spec.ts` | **Geçti — 1/1** | Chromium offline, production statik export | `05cda45` + çalışma ağacı | 2026-07-30 |
-| `E2E-W-PERF-001` | `e2e/large-pdf-performance.spec.ts` | **Geçti — 1/1; 120 slot, ≤10 aktif sayfa, uzak sayfa araması** | Chromium, production statik export | `05cda45` + çalışma ağacı | 2026-07-30 |
+| `E2E-W-READER-001` | `e2e/library-reader-progress.spec.ts` | **Geçti — 1/1** | Chromium, production statik export | `797a2e5` + çalışma ağacı | 2026-07-31 |
+| `E2E-W-PWA-001` | `e2e/pwa-offline.spec.ts` | **Geçti — 1/1** | Chromium offline, production statik export | `797a2e5` + çalışma ağacı | 2026-07-31 |
+| `E2E-W-PERF-001` | `e2e/large-pdf-performance.spec.ts` | **Geçti — 1/1; 120 slot, ≤10 aktif sayfa, uzak sayfa araması** | Chromium, production statik export | `797a2e5` + çalışma ağacı | 2026-07-31 |
 | `PERF-W-001` | `benchmarks/web-performance.spec.ts` + `benchmark-results/latest.*` | **Geçti — orta profil, 3/3; UI import/reader/search/backup/cache bütçeleri** | Windows x64, Chromium 151, production statik export | `78d2e68` + çalışma ağacı | 2026-07-30 |
-| Type-check | `npm run type-check` | **Geçti** | Windows, TypeScript 5 | `05cda45` + çalışma ağacı | 2026-07-30 |
-| ESLint | `npm run lint` | **Geçti — 0 hata, 2 Firebase uyarısı** | Windows, ESLint 9 | `05cda45` + çalışma ağacı | 2026-07-30 |
-| Production build | `npm run build` | **Geçti — 4 statik route** | Windows, Next.js 16.2.11 | `05cda45` + çalışma ağacı | 2026-07-30 |
+| Type-check | `npm run type-check` | **Geçti** | Windows, TypeScript 5 | `797a2e5` + çalışma ağacı | 2026-07-31 |
+| ESLint | `npm run lint` | **Geçti — 0 hata, 2 Firebase uyarısı** | Windows, ESLint 9 | `797a2e5` + çalışma ağacı | 2026-07-31 |
+| Production build | `npm run build` | **Geçti — 4 statik route/6 statik sayfa** | Windows, Next.js 16.2.11 | `797a2e5` + çalışma ağacı | 2026-07-31 |
 | Production audit | `npm audit --omit=dev` | **2 açık — 1 high PostCSS, 1 moderate Next** | npm dependency tree | `05cda45` + çalışma ağacı | 2026-07-30 |
 | Web Quality CI | `.github/workflows/web-quality.yml` | Workflow eklendi; ilk remote çalışma bekleniyor | GitHub Actions, Node 20 | Çalışma ağacı | 2026-07-30 |
 
@@ -2045,11 +2070,10 @@ bu tabloda test kimliği dosya yoluna bağlanmalıdır.
 ### 18.1 Ürün sınırlamaları
 
 - PDF vurgu overlay'i yoktur.
-- Kullanıcıya açık bulut senkronizasyonu yoktur; yalnız Firebase/Firestore ve
-  auth store temeli çalışma ağacında kısmen bulunmaktadır.
-- Hesap sistemi yoktur.
+- Bulut senkronizasyonu bugün yalnız cihazdan buluta push ve Drive upload/silme
+  yönündedir; buluttan cihaza pull/download yoktur.
 - PWA manifest ve service worker vardır; kullanıcıya açık install prompt,
-  storage quota/persistence ve cache-update bildirimi henüz yoktur.
+  storage quota/persistence henüz yoktur. Cache-update bildirimi mevcuttur.
 - iOS projesi yoktur.
 - Koleksiyon/çoklu etiket sistemi yoktur.
 - Play Store in-app update yoktur.
@@ -2066,15 +2090,11 @@ bu tabloda test kimliği dosya yoluna bağlanmalıdır.
 
 ### 18.2 Teknik borç
 
-- Kök `README.md` hâlâ varsayılan create-next-app metnidir.
-- Pasif biyometrik dosyalar kod tabanında durur.
-- `html lang="en"` sabittir; seçili locale ile senkron değildir.
-- Web `0.1.0` ve Android `1.0` sürümleri tutarsızdır.
-- Üretim manifestinde cleartext traffic açıktır.
 - Otomatik test kapsamı reader bootstrap ile başlamıştır; storage, backup,
   import, reader yüzeyleri ve E2E kapsamı hâlâ eksiktir.
 - Web hata izleme katmanı yoktur.
-- Android ve web release süreçleri birlikte sürümlenmemektedir.
+- Android `versionName` paket sürümünden gelir; Play `versionCode` otomasyonu ve
+  web/Android release orkestrasyonu henüz yoktur.
 - Backup nihai ZIP Blob'unu JSZip nedeniyle bellekte üretmeye devam eder; eager
   kitap ArrayBuffer kopyası ve EPUB/PDF yeniden sıkıştırması kaldırılmıştır.
 - Kullanıcı tercihleri backup'a dahil değildir; bunun ürün kararı mı eksik mi olduğu
@@ -2105,12 +2125,12 @@ bu tabloda test kimliği dosya yoluna bağlanmalıdır.
 
 | ID | Sorun | Etki | Önem | Geçici çözüm | Durum/sahip | Hedef |
 |---|---|---|---|---|---|---|
-| ISS-001 | Gerçek otomatik ürün testleri yoktu | Regresyon ve veri kaybı geç fark edilirdi | Kritik | 43 Vitest + 3 Playwright senaryosu ve CI kapısı eklendi | Temel çözüldü / maintainer; kapsam sürekli genişletilmeli | Faz A |
-| ISS-002 | Web `0.1.0`, Android `1.0` | Yayın ve migration takibi belirsiz | Yüksek | Sürümleri elle karşılaştır | Açık / maintainer | Faz A |
-| ISS-003 | Production manifest cleartext trafiğe izin veriyor | Güvenlik yüzeyi genişler | Yüksek | Yalnız güvenilir ağ/dev kullanım | Açık / Android | Faz A |
+| ISS-001 | Gerçek otomatik ürün testleri yoktu | Regresyon ve veri kaybı geç fark edilirdi | Kritik | 48 Vitest + 2 Node raporlayıcı + 3 Playwright senaryosu ve CI kapısı eklendi | Temel çözüldü / maintainer; kapsam sürekli genişletilmeli | Faz A |
+| ISS-002 | Web ve Android sürüm adı ayrışıktı | Yayın ve migration takibi belirsizdi | Yüksek | Android `versionName` artık `package.json` değerini okuyor | Çözüldü / maintainer; `versionCode` otomasyonu Faz D'de | Faz A |
+| ISS-003 | Production manifest cleartext trafiğe izin veriyordu | Güvenlik yüzeyi genişti | Yüksek | Main/release `false`, yalnız debug live-reload manifesti `true` | Çözüldü / Android | Faz A |
 | ISS-004 | PDF görsel vurgu overlay'i yok | Kullanıcı alıntıyı sayfada renkli göremez | Orta | NotesPanel'den sayfaya git | Kabul edilmiş / reader | Gelecek değerlendirme |
-| ISS-005 | Biyometrik pasif kod/bağımlılık kalıntıları | Bakım ve yanlış etkinleştirme riski | Orta | Root render kapalı | Açık / cleanup | Faz A |
-| ISS-006 | `<html lang>` aktif locale ile senkron değil | Screen reader/SEO dili yanlış olabilir | Orta | Uygulama içi metin yine çevrilir | Açık / web | Faz A |
+| ISS-005 | Biyometrik pasif kod/bağımlılık kalıntıları | Bakım ve yanlış etkinleştirme riski vardı | Orta | Bileşen, store, çeviri ve plugin kaldırıldı | Çözüldü / cleanup | Faz A |
+| ISS-006 | `<html lang>` aktif locale ile senkron değildi | Screen reader/SEO dili yanlış olabilirdi | Orta | Statik varsayılan `tr`; `DocumentLocaleSync` seçimi köke yansıtıyor | Çözüldü / web; unit test geçti | Faz A |
 | ISS-007 | PWA manifest/service worker yok | Web kurulumu ve offline app shell yok | Yüksek | Manifest, sürümlü service worker ve app-shell eklendi | Çözüldü / web; `E2E-W-PWA-001` geçti | Faz C |
 | ISS-008 | Büyük dosya bütçeleri gerçek cihazda ölçülmedi | OOM, uzun bekleme, process death riski | Yüksek | PDF canvas lazy rendering, belge yeniden kullanımı, EPUB yoğunluk politikası, kontrollü arama, bounded kapak LRU/thumbnail ve 120 sayfalık web regresyonu | Kısmi / performance; Android baseline'ı açık | Faz B |
 | ISS-009 | Kullanıcı tercihleri ZIP backup'a dahil değil | Cihaz geçişinde ayarlar kaybolur | Orta | Tercihleri yeniden ayarla | Karar gerekli / data | Faz A |
@@ -2182,7 +2202,7 @@ Yeni önerilerin roadmap dağılımı:
 | RM-A-09 | Bağımlılık, lisans ve güncelleme politikası | A | Maintainer/security | M | Planlı |
 | RM-A-10 | Yerel veri RPO/RTO hedefleri | A | Data/operations | S | Planlı |
 | RM-A-11 | Reader eksik dosya/bootstrap hata durumunu sonlandırma | A | Reader/QA | S | Tamamlandı |
-| RM-B-01 | Gerçek performans baseline raporu | B | Performance | L | Planlı |
+| RM-B-01 | Gerçek performans baseline raporu | B | Performance | L | Ertelendi / ayrı test cihazı bekliyor |
 | RM-F-01 | Senkronizasyon state machine | F | Sync/data | M | Planlı |
 | RM-F-02 | Firestore ve Drive veri sözleşmesi | F | Sync/security | L | Planlı |
 | RM-F-03 | Firebase/Drive maliyet ve kota modeli | F | Product/operations | M | Planlı |
@@ -2194,13 +2214,13 @@ Yeni önerilerin roadmap dağılımı:
 Amaç: Mevcut özellikleri güvenilir ve belgelenmiş bir tabana oturtmak.
 
 - [x] README'yi gerçek ürün giriş sayfasına dönüştürmek.
-- [ ] Sürümleme politikasını birleştirmek.
+- [x] Web ve Android `versionName` kaynağını `package.json` üzerinde birleştirmek.
 - [x] Lint, type-check ve ilk reader regresyon testlerini CI kapısı yapmak.
 - [x] IndexedDB ve backup round-trip integration testleri.
 - [x] Web E2E temel akışı.
-- [ ] Biyometrik kalıntıları ve eski test maddelerini temizlemek.
-- [ ] `html lang` değerini aktif locale ile uyumlu yapmak.
-- [ ] Production cleartext ayarını kapatmak.
+- [x] Biyometrik kalıntıları ve native plugin bağımlılığını temizlemek.
+- [x] `html lang` değerini aktif locale ile uyumlu yapmak.
+- [x] Production cleartext ayarını kapatıp debug live-reload istisnasını ayırmak.
 - [ ] Gizlilik politikası ve veri envanteri hazırlamak.
 - [ ] Landscape/foldable/tablet regresyon testleri.
 - [x] **RM-A-01:** Test sonuç panosu test kimliği, kanıt dosyası, sonuç, commit,
@@ -2254,6 +2274,10 @@ Amaç: Düşük ve orta seviye cihazlarda büyük EPUB/PDF dosyalarını güveni
 - [ ] **RM-B-01:** Küçük/orta/büyük fixture sınıflarında cold/warm start, import,
   EPUB/PDF first page, arama, backup, p50/p95, tepe bellek ve frame sürelerini
   ölçen gerçek baseline raporu yayınlamak.
+- [x] Release-derived Android Macrobenchmark modülü, soğuk startup ve orta PDF
+  reader frame/maksimum bellek senaryosu.
+- [x] AndroidX ham raporunu ortak web/Android şemasına dönüştürme ve fiziksel
+  self-hosted runner için manuel artifact workflow'u.
 - [x] Web benchmark raporunu commit, OS, mimari, browser ve production build
   bilgisiyle CI artifact'ine bağlamak.
 - [ ] Ölçüm sonucuna göre NFR hedeflerini kabul etmek veya gerekçeli biçimde
@@ -2267,12 +2291,12 @@ Amaç: Web sürümünü kurulabilir ve gerçek anlamda ağsız kullanılabilir y
 - [x] Service worker ve kontrollü cache stratejisi.
 - [x] App shell offline açılışı production Chromium E2E ile doğrulandı.
 - [x] PDF worker ve Next/font statik parçalarının offline cache kapsamı.
-- [ ] Cache sürümleme ve güncelleme ekranı.
+- [x] Cache sürümleme ve kullanıcı onaylı güncelleme bildirimi.
 - [ ] Storage quota ve kalıcı depolama izni UX'i.
 - [ ] PWA install deneyimi.
 - [x] Temel offline/online Chromium E2E senaryosu eklendi; tarayıcı matrisi genişletilmeli.
 - [ ] Service worker/cache lifecycle durumlarını ve hata/rollback geçişlerini
-  state machine olarak modellemek.
+  state machine olarak modellemek; waiting/activate kullanıcı geçişi uygulanmıştır.
 - [ ] Web ekran referans setini kurulu PWA, offline ve güncelleme durumlarıyla
   genişletmek.
 
@@ -2414,10 +2438,23 @@ Plan:
   gözlemlenmedi.
 - [ ] Firestore offline persistence ile yerel yazma kuyruğunun birlikte çalışma
   modelini doğrulama.
-- [ ] Drive uygulama klasörü oluşturma ve dosya yükleme.
-- [ ] Hesaplı kullanıcı kitap eklediğinde upload'ı arka planda yapma; misafir
-  akışına dokunmama.
-- [ ] Firestore kitap kaydında Drive dosya kimliğini saklama.
+- [x] **Drive uygulama klasörü ve dosya yükleme — uçtan uca doğrulandı**:
+  `lib/drive-sync.ts`. İlk tasarımda `appDataFolder` (gizli alan) kullanılmıştı
+  ama bu, `drive.file` scope'unun kapsamadığı ayrı bir izin (`drive.appdata`)
+  gerektiriyordu — `403 insufficientScopes` ile ortaya çıktı (gerçek cihazda,
+  DevTools Network sekmesinden görüldü). Düzeltme: dosyalar artık kullanıcının
+  normal Drive'ında görünür bir **"Paperlike"** klasörüne yükleniyor
+  (`getOrCreateAppFolder` — ilk kullanımda arayıp bulamazsa oluşturuyor, id'yi
+  oturum boyunca önbelleğe alıyor), sadece `drive.file` scope'uyla çalışıyor.
+  Google hesabıyla giriş sırasında `DRIVE_SIGNIN_SCOPES` isteniyor,
+  `accessToken` `useAuthStore`'da önbelleğe alınıp süresi dolunca (~55dk)
+  sessizce yenileniyor.
+- [x] Hesaplı kullanıcı kitap eklediğinde upload arka planda yapılıyor
+  (`lib/storage.ts#addBook` → dinamik import ile `syncBookFileToDrive`);
+  misafir akışına dokunmuyor (Google access token yoksa no-op).
+- [x] Firestore kitap kaydında Drive dosya kimliği (`driveFileId`) saklanıyor
+  — gerçek cihazda Firestore Console'da doğrulandı. Kitap silindiğinde Drive
+  dosyası da siliniyor (`deleteBookRemote` → `deleteBookFileFromDrive`).
 - [ ] Yerelde olmayan kitabı ihtiyaç anında Drive'dan indirme/cache'leme.
 - [ ] Kota, izin iptali, eksik dosya ve yarım upload hata akışları.
 - [ ] Kısmi/başarısız upload resume.
@@ -2490,8 +2527,8 @@ Paperlike “Google Play'e hazır” sayılmadan önce en az:
 - Gizlilik politikası ve Data Safety beyanı tamamlanmalı.
 - Kritik import/read/progress/backup akışları otomatik test edilmeli.
 - Büyük dosya ve düşük bellek senaryoları için kabul kriterleri karşılanmalı.
-- Biyometrik test/arayüz kalıntıları kullanıcıya görünmemeli.
-- Cleartext production trafiği kapatılmalı.
+- Biyometrik kod/bağımlılık kalıntılarının kaldırıldığı doğrulanmalı.
+- Cleartext yalnız debug live-reload varyantında açık olmalı.
 - Crashlytics release build'inde doğrulanmalı.
 - Manuel cihaz matrisi tamamlanmalı.
 - Backup/restore gerçek cihazda doğrulanmalı.
@@ -2983,6 +3020,8 @@ güvenli biçimde ulaşmayı sağlamaktır.
 | `1.9` | 2026-07-30 | `05cda45` + çalışma ağacı | Backup/restore performans ve güvenlik dilimi tamamlandı: tarayıcı Blob girdisi, EPUB/PDF `STORE`, streamFiles, aşama ilerlemesi, UI iptali, CRC/manifest/metadata/zorunlu dosya ön doğrulaması ve kısmi arşiv koruması eklendi. 3 MiB çok-kitaplı round-trip dahil pano 35 Vitest + 3 Playwright oldu; JSZip nihai çıktı belleği ve gerçek cihaz baseline'ı açık bırakıldı. |
 | `1.10` | 2026-07-30 | `05cda45` + çalışma ağacı | Kapak performans dilimi tamamlandı: 300 px viewport lazy loading, 384×576 thumbnail, 96 kayıt/32 MiB bounded LRU, eşzamanlı IndexedDB/URL dedupe, lease tabanlı revoke, raf rengi reuse ve silme/restore invalidation eklendi. 200 kitaplık fixture ve viewport testiyle pano 43 Vitest + 3 Playwright oldu. |
 | `1.11` | 2026-07-30 | `78d2e68` + çalışma ağacı | Küçük/orta/büyük deterministik EPUB/PDF profilleri, temiz context üzerinde UI tabanlı import/ilk sayfa/sayfa geçişi/arama/backup/restore/kapak ölçümleri, ortak web-Android JSON şeması, Markdown özet, yapısal ve süre bütçeleri ile CI artifact'i eklendi. Faz B fixture, web ölçüm ve CI kanıt işleri tamamlandı; Android cihaz belleği/frame baseline'ı açık bırakıldı. Graphify 26.223 node/63.160 edge/639 community ile yenilendi. |
+| `1.12` | 2026-07-31 | `797a2e5` + çalışma ağacı | Release-derived ve profileable Android Macrobenchmark modülü; soğuk startup ile ACTION_VIEW üzerinden 120 sayfalık PDF reader frame/maksimum bellek senaryoları; AndroidX ham sonucu ortak şemaya dönüştüren testli raporlayıcı; tek komutlu çalıştırıcı ve fiziksel self-hosted cihaz workflow'u eklendi. Modül APK derlemesi doğrulandı; kabul edilmiş Android baseline'ı açık bırakıldı. |
+| `1.13` | 2026-07-31 | `797a2e5` + çalışma ağacı | Fiziksel benchmark kişisel uygulama/veri kaybını önlemek için açık dedicated-device iznine bağlandı ve baseline ayrı cihaz bulunana kadar ertelendi. Production cleartext kapatıldı; debug live-reload istisnası ayrıldı. Android `versionName` paket sürümüne bağlandı. Pasif biyometrik bileşen/store/plugin kaldırıldı. Belge dili TR/EN seçimiyle senkronlandı. PWA cache v2, waiting worker bildirimi ve kullanıcı onaylı güncelleme akışı eklendi. |
 
 ### Changelog kuralı
 

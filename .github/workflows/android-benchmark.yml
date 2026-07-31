@@ -1,0 +1,71 @@
+name: Android Physical Device Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: "Macrobenchmark iteration count"
+        required: true
+        default: "5"
+        type: string
+      enforce_budgets:
+        description: "Fail timing and resource budget overruns"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-physical-benchmark
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    # This label intentionally requires a maintainer-controlled physical device.
+    # AndroidX warns that emulator benchmark numbers are not release-accurate.
+    runs-on: [self-hosted, android-benchmark]
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - run: npm ci
+
+      - name: Verify attached physical device
+        run: adb devices -l
+
+      - name: Run release-derived Macrobenchmark
+        run: npm run benchmark:android
+        env:
+          # This runner label is reserved for a disposable device with no user data.
+          PAPERLIKE_ALLOW_DEVICE_BENCHMARK: dedicated-test-device
+          BENCHMARK_ITERATIONS: ${{ inputs.iterations }}
+          BENCHMARK_ENFORCE_TIMINGS: ${{ inputs.enforce_budgets && '1' || '0' }}
+
+      - name: Upload normalized benchmark report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-benchmark-report
+          path: benchmark-results/android-latest.*
+          if-no-files-found: ignore
+
+      - name: Upload AndroidX traces and raw results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-benchmark-raw
+          path: android/benchmark/build/outputs
+          if-no-files-found: ignore

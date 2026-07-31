@@ -13,22 +13,16 @@ export const tr = {
   "format.pdf": "PDF",
   "format.all": "Tümü",
 
-  // Biometric lock
-  "biometric.notAvailable": "Cihazda parmak izi/yüz tanıma kurulu değil.",
-  "biometric.reason": "Kütüphaneyi açmak için kimliğini doğrula",
-  "biometric.failed": "Doğrulama başarısız. Tekrar deneyin.",
-  "biometric.locked": "Kütüphane kilitli",
-  "biometric.unlock": "Kilidi Aç",
-  "biometric.disableLock": "Kilidi devre dışı bırak",
-  "biometric.disableLockConfirm": "Bu, kütüphane kilidini tamamen kapatır. Emin misin?",
-  "biometric.disableLockConfirmYes": "Evet, kapat",
-  "biometric.disableLockConfirmNo": "Vazgeç",
-
   // Open file (share/open-with)
   "openFile.unsupportedType": "Desteklenmeyen dosya türü.",
   "openFile.importedFilename": "İçe Aktarılan Kitap",
   "openFile.added": "Kitap eklendi.",
   "openFile.failed": "Kitap açılamadı.",
+
+  // PWA
+  "pwa.updateReady": "Paperlike'ın yeni sürümü hazır.",
+  "pwa.update": "Güncelle",
+  "pwa.later": "Sonra",
 
   // Backup menu
   "backup.shareTitle": "Kütüphane Yedeği",
@@ -39,7 +33,6 @@ export const tr = {
   "backup.ariaLabel": "Yedekleme",
   "backup.export": "Kütüphaneyi Yedekle",
   "backup.import": "Yedekten Geri Yükle",
-  "backup.biometricLock": "Biyometrik Kilit",
   "backup.progressCollecting": "Kitaplar hazırlanıyor",
   "backup.progressCompressing": "Yedek oluşturuluyor",
   "backup.progressValidating": "Yedek doğrulanıyor",
@@ -86,6 +79,8 @@ export const tr = {
   "library.bookCount": "{count} kitap",
   "library.stats": "Okuma istatistiklerin",
   "library.addCategory": "Kategori ekle",
+  "library.editLibrary": "Düzenle",
+  "library.doneEditing": "Bitti",
   "library.addBook": "Kitap Ekle",
   "library.searchPlaceholder": "Kitap veya yazar ara…",
   "library.sortRecent": "Son Eklenen",

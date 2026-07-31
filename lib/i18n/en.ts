@@ -13,22 +13,16 @@ export const en: Record<keyof typeof tr, string> = {
   "format.pdf": "PDF",
   "format.all": "All",
 
-  // Biometric lock
-  "biometric.notAvailable": "No fingerprint/face recognition set up on this device.",
-  "biometric.reason": "Verify your identity to open the library",
-  "biometric.failed": "Verification failed. Try again.",
-  "biometric.locked": "Library locked",
-  "biometric.unlock": "Unlock",
-  "biometric.disableLock": "Disable lock",
-  "biometric.disableLockConfirm": "This turns off the library lock entirely. Are you sure?",
-  "biometric.disableLockConfirmYes": "Yes, disable",
-  "biometric.disableLockConfirmNo": "Cancel",
-
   // Open file (share/open-with)
   "openFile.unsupportedType": "Unsupported file type.",
   "openFile.importedFilename": "Imported Book",
   "openFile.added": "Book added.",
   "openFile.failed": "Couldn't open the book.",
+
+  // PWA
+  "pwa.updateReady": "A new version of Paperlike is ready.",
+  "pwa.update": "Update",
+  "pwa.later": "Later",
 
   // Backup menu
   "backup.shareTitle": "Library Backup",
@@ -39,7 +33,6 @@ export const en: Record<keyof typeof tr, string> = {
   "backup.ariaLabel": "Backup",
   "backup.export": "Back Up Library",
   "backup.import": "Restore from Backup",
-  "backup.biometricLock": "Biometric Lock",
   "backup.progressCollecting": "Preparing books",
   "backup.progressCompressing": "Creating backup",
   "backup.progressValidating": "Validating backup",
@@ -86,6 +79,8 @@ export const en: Record<keyof typeof tr, string> = {
   "library.bookCount": "{count} books",
   "library.stats": "Your reading stats",
   "library.addCategory": "Add category",
+  "library.editLibrary": "Edit",
+  "library.doneEditing": "Done",
   "library.addBook": "Add Book",
   "library.searchPlaceholder": "Search by title or author…",
   "library.sortRecent": "Recently Added",

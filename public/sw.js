@@ -1,4 +1,5 @@
-const CACHE_VERSION = "paperlike-shell-v1";
+const CACHE_PREFIX = "paperlike-shell-";
+const CACHE_VERSION = `${CACHE_PREFIX}v2`;
 const APP_SHELL = [
   "/",
   "/reader",
@@ -32,16 +33,25 @@ self.addEventListener("install", (event) => {
       const cache = await caches.open(CACHE_VERSION);
       await cache.addAll(APP_SHELL.slice(2));
       await Promise.all(APP_SHELL.slice(0, 2).map((path) => cachePageAndAssets(cache, path)));
-      await self.skipWaiting();
     })()
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    void self.skipWaiting();
+  }
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const names = await caches.keys();
-      await Promise.all(names.filter((name) => name !== CACHE_VERSION).map((name) => caches.delete(name)));
+      await Promise.all(
+        names
+          .filter((name) => name.startsWith(CACHE_PREFIX) && name !== CACHE_VERSION)
+          .map((name) => caches.delete(name))
+      );
       await self.clients.claim();
     })()
   );

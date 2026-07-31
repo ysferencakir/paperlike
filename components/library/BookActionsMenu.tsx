@@ -1,17 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Info, MoreHorizontal, PenLine } from "lucide-react";
+import { Info, MoreHorizontal, PenLine, Trash2 } from "lucide-react";
 import type { Book } from "@/lib/types";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { toast } from "@/store/useToastStore";
-import { formatBytes } from "@/lib/utils";
+import { cn, formatBytes } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -25,21 +26,25 @@ import {
 
 const TRIGGER_CLASSES = {
   overlay:
-    "absolute left-2 top-2 flex size-7 items-center justify-center rounded-full bg-black/40 text-white opacity-0 backdrop-blur-sm transition-all duration-200 hover:bg-black/60 group-hover:opacity-100 focus-visible:opacity-100 data-open:opacity-100",
+    "absolute left-2 top-2 flex size-7 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm transition-all duration-200 hover:bg-black/60",
   inline:
-    "flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-0 transition-all duration-150 hover:bg-muted hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100 data-open:opacity-100",
+    "flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground",
 };
 
 export function BookActionsMenu({
   book,
   variant = "overlay",
+  forceVisible = false,
 }: {
   book: Book;
   variant?: "overlay" | "inline";
+  /** Skip the hover-only reveal and keep the trigger visible — used in "edit library" mode for touch devices, which have no hover state. */
+  forceVisible?: boolean;
 }) {
   const { t, locale } = useTranslation();
   const [renameOpen, setRenameOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const formatLabel = t(book.format === "epub" ? "format.epub" : "format.pdf");
 
   return (
@@ -54,7 +59,12 @@ export function BookActionsMenu({
                 e.stopPropagation();
               }}
               aria-label={t("bookActions.ariaLabel")}
-              className={TRIGGER_CLASSES[variant]}
+              className={cn(
+                TRIGGER_CLASSES[variant],
+                forceVisible
+                  ? "opacity-100"
+                  : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-open:opacity-100"
+              )}
             />
           }
         >
@@ -69,10 +79,16 @@ export function BookActionsMenu({
             <Info />
             {t("bookActions.info")}
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" onClick={() => setDeleteOpen(true)}>
+            <Trash2 />
+            {t("book.delete")}
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
       <RenameDialog book={book} open={renameOpen} onOpenChange={setRenameOpen} />
+      <DeleteDialog book={book} open={deleteOpen} onOpenChange={setDeleteOpen} />
 
       <Dialog open={infoOpen} onOpenChange={setInfoOpen}>
         <DialogContent showCloseButton>
@@ -96,6 +112,50 @@ export function BookActionsMenu({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function DeleteDialog({
+  book,
+  open,
+  onOpenChange,
+}: {
+  book: Book;
+  open: boolean;
+  onOpenChange: (value: boolean) => void;
+}) {
+  const { t } = useTranslation();
+  const removeBook = useLibraryStore((s) => s.removeBook);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await removeBook(book.id);
+      toast.message(t("book.deleted"));
+      onOpenChange(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent showCloseButton>
+        <DialogHeader>
+          <DialogTitle>{t("book.confirmDelete")}</DialogTitle>
+          <DialogDescription>{book.title}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {t("common.cancel")}
+          </Button>
+          <Button variant="destructive" onClick={() => void handleDelete()} disabled={deleting}>
+            {t("book.delete")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

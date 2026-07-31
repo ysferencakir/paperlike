@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { BarChart3, LayoutGrid, Library, LibraryBig, List, Plus, Search, Tag } from "lucide-react";
+import { BarChart3, Check, LayoutGrid, Library, LibraryBig, List, Pencil, Plus, Search, Tag } from "lucide-react";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { useLibraryViewStore } from "@/store/useLibraryViewStore";
 import type { BookFormat } from "@/lib/types";
@@ -44,6 +44,7 @@ export function LibraryView() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [categoryOpen, setCategoryOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortOption>("recent");
   const [formatFilter, setFormatFilter] = useState<FormatFilter>("all");
@@ -128,6 +129,15 @@ export function LibraryView() {
                   onClick={() => setCategoryOpen(true)}
                 >
                   <Tag className="size-4" />
+                </Button>
+                <Button
+                  variant={editMode ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setEditMode((v) => !v)}
+                  className="gap-1.5"
+                >
+                  {editMode ? <Check className="size-3.5" /> : <Pencil className="size-3.5" />}
+                  {editMode ? t("library.doneEditing") : t("library.editLibrary")}
                 </Button>
                 <Button size="sm" onClick={() => setUploadOpen(true)} className="gap-1.5">
                   <Plus className="size-3.5" />
@@ -246,7 +256,7 @@ export function LibraryView() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: Math.min(i, 12) * 0.025, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <BookCard book={book} />
+                  <BookCard book={book} editMode={editMode} />
                 </motion.div>
               ))}
             </div>
@@ -259,7 +269,7 @@ export function LibraryView() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.25, delay: Math.min(i, 16) * 0.02, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <BookListRow book={book} />
+                  <BookListRow book={book} editMode={editMode} />
                 </motion.div>
               ))}
             </div>

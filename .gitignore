@@ -26,6 +26,7 @@
 # misc
 .DS_Store
 *.pem
+/.claude/
 
 # debug
 npm-debug.log*
@@ -51,6 +52,7 @@ next-env.d.ts
 # capacitor / android build outputs
 /android/app/build
 /android/build
+/android/benchmark/build
 /android/.gradle
 /android/local.properties
 /android/app/src/main/assets/public

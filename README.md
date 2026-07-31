@@ -8,7 +8,7 @@ ile Android uygulamasına paketlenir. Kitaplar, ilerleme, notlar ve istatistikle
 öncelikle kullanıcının cihazında tutulur.
 
 > Proje prototip aşamasındadır. Temel okuma deneyimi geniştir; production
-> dağıtımı, büyük dosya performansı, PWA güncelleme UX'i ve bulut senkronizasyonu
+> dağıtımı, büyük dosya performansı, PWA install/storage UX'i ve iki yönlü bulut senkronizasyonu
 > hâlâ geliştirilmektedir.
 
 ## Ana dokümantasyon
@@ -62,6 +62,7 @@ stratejisi, bilinen sorunlar ve ayrıntılı yol haritası için:
 
 - Kurulabilir web app manifest ve bağımsız Paperlike ikonları
 - Sürümlü service worker app-shell cache'i
+- Yeni sürüm için kullanıcı onaylı güncelle/ertele bildirimi
 - Kütüphane ve reader rotalarının çevrimdışı açılışı
 - PDF worker ve Next.js statik parçalarının önbelleğe alınması
 - Playwright ile gerçek Chromium offline testi
@@ -88,12 +89,12 @@ stratejisi, bilinen sorunlar ve ayrıntılı yol haritası için:
 | Android sistem entegrasyonları | Mevcut, cihaz matrisi genişletilmeli |
 | Web statik uygulaması | Mevcut prototip |
 | Türkçe/İngilizce | Mevcut |
-| Firebase/auth temeli | Geliştirme aşamasında |
-| PWA/offline app shell | Mevcut; güncelleme/quota UX'i geliştirilmeli |
+| Firebase/auth temeli | Mevcut; senkronizasyon genişletiliyor |
+| PWA/offline app shell | Mevcut; güncelleme bildirimi hazır, install/quota UX'i geliştirilmeli |
 | Büyük kitap optimizasyonu | Kısmi; PDF lazy rendering, kontrollü arama, backup/restore ve kapak LRU/thumbnail optimizasyonu mevcut |
 | Google Play production dağıtımı | Planlı |
 | Koleksiyonlar/etiketler | Planlı |
-| Bulut senkronizasyonu | Tasarlanmış, uygulanıyor |
+| Bulut senkronizasyonu | Tek yönlü Firestore push + Drive upload mevcut; pull/download planlı |
 | iOS | Planlı |
 
 ## Teknik yığın
@@ -139,6 +140,9 @@ Tarayıcıda `http://localhost:3000` adresini açın.
 | `npm run test:e2e:ui` | Playwright görsel test arayüzü |
 | `npm run benchmark:web` | Mevcut `out/` üzerinde web performans benchmarkı |
 | `npm run benchmark:web:build` | Production build + web performans benchmarkı |
+| `npm run benchmark:android:assemble` | Android benchmark hedef APK'larını derler |
+| `npm run benchmark:android` | Yalnız ayrılmış/silinebilir test cihazında ve açık güvenlik izniyle Macrobenchmark |
+| `npm run benchmark:android:report` | Mevcut AndroidX sonucunu ortak JSON/Markdown'a çevirir |
 | `npm run check` | Lint, type-check ve test kalite kapısı |
 | `npm run cap:sync` | Web build ve Android Capacitor sync |
 | `npm run android:open` | Android Studio'da projeyi açma |
@@ -171,8 +175,9 @@ Bilgisayar ve Android cihaz aynı ağda olmalıdır.
 - ZIP yedekleri kitap dosyaları ve kişisel notlar içerir; şifreli değildir.
 - Native hatalar ve köprüden iletilen JavaScript hataları Crashlytics'e
   gönderilebilir.
-- Gelecek senkronizasyon modeli metadata için Firestore'u, kitap dosyaları için
-  kullanıcının kendi Google Drive alanını hedefler.
+- Opsiyonel senkronizasyon metadata için Firestore'u, kitap dosyaları için
+  kullanıcının kendi Google Drive alanını kullanır; buluttan cihaza geri çekme
+  henüz tamamlanmamıştır.
 
 ## Proje yapısı
 

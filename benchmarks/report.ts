@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-export type BenchmarkMetricKind = "timing" | "structural";
+export type BenchmarkMetricKind = "timing" | "resource" | "structural";
 export type BenchmarkStatus = "pass" | "warn" | "fail";
 
 export interface BenchmarkMetricDefinition {
@@ -30,10 +30,15 @@ export interface BenchmarkReport {
   timingsEnforced: boolean;
   environment: {
     ci: boolean;
-    node: string;
-    os: string;
-    architecture: string;
+    node?: string;
+    os?: string;
+    architecture?: string;
     browser?: string;
+    device?: string;
+    sdk?: number;
+    fingerprint?: string;
+    memoryBytes?: number;
+    cpuCoreCount?: number;
     commit?: string;
   };
   fixtures: Record<string, { bytes: number; itemCount: number; mimeType: string }>;
@@ -56,7 +61,7 @@ export function createMetricResult(
   const p95 = percentile(roundedSamples, 95);
   const overBudget = p95 > definition.budget;
   const status: BenchmarkStatus = overBudget
-    ? definition.kind === "timing" && !timingsEnforced
+    ? definition.kind !== "structural" && !timingsEnforced
       ? "warn"
       : "fail"
     : "pass";
@@ -96,7 +101,7 @@ function renderMarkdown(report: BenchmarkReport): string {
 - Iterations: ${report.iterations}
 - Timing budgets enforced: ${report.timingsEnforced ? "yes" : "no"}
 - Commit: ${report.environment.commit ?? "local working tree"}
-- Runtime: ${report.environment.browser ?? report.environment.node}
+- Runtime: ${report.environment.browser ?? report.environment.device ?? report.environment.node ?? "unknown"}
 
 | Metric | p50 | p95 | Budget | Status |
 | --- | ---: | ---: | ---: | --- |

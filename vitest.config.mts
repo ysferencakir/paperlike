@@ -11,6 +11,6 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
     clearMocks: true,
-    exclude: [...configDefaults.exclude, "e2e/**", "benchmarks/**"],
+    exclude: [...configDefaults.exclude, "e2e/**", "benchmarks/**", ".claude/**"],
   },
 });

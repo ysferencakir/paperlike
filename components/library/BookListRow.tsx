@@ -11,7 +11,7 @@ import { BookCover } from "./BookCover";
 import { BookActionsMenu } from "./BookActionsMenu";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 
-export function BookListRow({ book }: { book: Book }) {
+export function BookListRow({ book, editMode = false }: { book: Book; editMode?: boolean }) {
   const { t } = useTranslation();
   const removeBook = useLibraryStore((s) => s.removeBook);
   const [confirming, setConfirming] = useState(false);
@@ -52,13 +52,14 @@ export function BookListRow({ book }: { book: Book }) {
       </span>
 
       <div className="flex shrink-0 items-center gap-0.5">
-        <BookActionsMenu book={book} variant="inline" />
+        <BookActionsMenu book={book} variant="inline" forceVisible={editMode} />
         <button
           type="button"
           onClick={handleDeleteClick}
           aria-label={confirming ? t("book.confirmDelete") : t("book.delete")}
           className={cn(
-            "flex size-7 items-center justify-center rounded-full opacity-0 transition-all duration-150 group-hover:opacity-100",
+            "flex size-7 items-center justify-center rounded-full transition-all duration-150",
+            editMode ? "opacity-100" : "opacity-0 group-hover:opacity-100",
             confirming
               ? "bg-destructive text-destructive-foreground opacity-100"
               : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"

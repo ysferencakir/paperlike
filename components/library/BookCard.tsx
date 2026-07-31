@@ -11,7 +11,7 @@ import { BookCover } from "./BookCover";
 import { BookActionsMenu } from "./BookActionsMenu";
 import { useTranslation } from "@/lib/i18n/useTranslation";
 
-export function BookCard({ book }: { book: Book }) {
+export function BookCard({ book, editMode = false }: { book: Book; editMode?: boolean }) {
   const { t } = useTranslation();
   const removeBook = useLibraryStore((s) => s.removeBook);
   const [confirming, setConfirming] = useState(false);
@@ -42,13 +42,20 @@ export function BookCard({ book }: { book: Book }) {
           {t(book.format === "epub" ? "format.epub" : "format.pdf")}
         </span>
 
-        <BookActionsMenu book={book} />
+        <BookActionsMenu book={book} forceVisible={editMode} />
+
+        {confirming && (
+          <span className="absolute right-11 top-2.5 rounded-md bg-destructive px-1.5 py-0.5 text-[10px] font-medium text-destructive-foreground shadow-sm">
+            {t("book.confirmDelete")}
+          </span>
+        )}
 
         <button
           type="button"
           onClick={handleDeleteClick}
           className={cn(
-            "absolute right-2 top-2 flex size-7 items-center justify-center rounded-full text-white opacity-0 backdrop-blur-sm transition-all duration-200 group-hover:opacity-100 focus-visible:opacity-100",
+            "absolute right-2 top-2 flex size-7 items-center justify-center rounded-full text-white backdrop-blur-sm transition-all duration-200",
+            editMode ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
             confirming ? "bg-destructive opacity-100" : "bg-black/40 hover:bg-black/60"
           )}
           aria-label={confirming ? t("book.confirmDelete") : t("book.delete")}

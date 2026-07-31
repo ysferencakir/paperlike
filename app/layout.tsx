@@ -7,7 +7,7 @@ import { ShortcutHandler } from "@/components/ShortcutHandler";
 import { CrashReportingHandler } from "@/components/CrashReportingHandler";
 import { AuthHandler } from "@/components/AuthHandler";
 import { PwaRegistrar } from "@/components/PwaRegistrar";
-// import { BiometricLockGate } from "@/components/BiometricLockGate"; // see note below
+import { DocumentLocaleSync } from "@/components/DocumentLocaleSync";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -58,7 +58,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="tr"
       className={`${geistSans.variable} ${geistMono.variable} ${literata.variable} ${lora.variable} ${garamond.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
@@ -70,10 +70,7 @@ export default function RootLayout({
         <CrashReportingHandler />
         <AuthHandler />
         <PwaRegistrar />
-        {/* Disabled again — still locked the user out in practice even with
-            the deviceIsSecure fallback + escape-hatch link. Not worth the
-            risk for this app; leaving the code in place but off. */}
-        {/* <BiometricLockGate /> */}
+        <DocumentLocaleSync />
       </body>
     </html>
   );

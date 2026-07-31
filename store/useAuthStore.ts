@@ -9,6 +9,7 @@ import {
 import { pullLibrarySnapshot, pushLibrarySnapshot } from "@/lib/cloud-sync";
 import { getFirebaseAuth } from "@/lib/firebase";
 import { DRIVE_SIGNIN_SCOPES, cacheDriveAccessToken, clearDriveAccessToken } from "@/lib/drive-sync";
+import { useSyncStatusStore } from "./useSyncStatusStore";
 
 // @capacitor-firebase/authentication signs the user in on the *native*
 // Android/iOS side only — nothing else in the Firebase JS SDK (Firestore,
@@ -97,6 +98,7 @@ export const useAuthStore = create<AuthState>()(() => ({
   signOut: async () => {
     await FirebaseAuthentication.signOut();
     clearDriveAccessToken();
+    useSyncStatusStore.getState().reset();
     const auth = getFirebaseAuth();
     if (auth) await firebaseSignOut(auth);
   },
@@ -117,6 +119,7 @@ export async function initAuthListener(): Promise<() => void> {
       // is actually bridged — pushing here too would race ahead of that and
       // hit Firestore before request.auth exists on the JS side.
       useAuthStore.setState({ user: change.user, initialized: true });
+      if (!change.user) useSyncStatusStore.getState().reset();
     });
     return () => void listener.remove();
   } catch {

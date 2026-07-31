@@ -48,5 +48,15 @@ export function AuthHandler() {
     };
   }, []);
 
+  useEffect(() => {
+    const flushOutbox = () => {
+      void import("@/lib/cloud-sync").then((module) =>
+        module.flushCurrentUserSyncOutbox().catch(console.error)
+      );
+    };
+    window.addEventListener("online", flushOutbox);
+    return () => window.removeEventListener("online", flushOutbox);
+  }, []);
+
   return null;
 }

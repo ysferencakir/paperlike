@@ -18,7 +18,10 @@ android {
         applicationId "com.ysferencakir.paperlike"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        // PAPERLIKE_VERSION_CODE lets CI supply a monotonically increasing
+        // Play Store versionCode (e.g. the workflow run number) per release
+        // build without editing this file. Local/dev builds fall back to 1.
+        versionCode (System.getenv("PAPERLIKE_VERSION_CODE") ?: "1").toInteger()
         versionName packageMetadata.version
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

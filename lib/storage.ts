@@ -8,11 +8,12 @@ import type {
   Highlight,
   ReadingProgress,
   ReadingStatDay,
+  SyncOutboxOperation,
   SyncTombstone,
 } from "./types";
 
 const DB_NAME = "epub-reader";
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 
 interface ReaderDB extends DBSchema {
   books: {
@@ -55,6 +56,11 @@ interface ReaderDB extends DBSchema {
     value: SyncTombstone;
     indexes: { "by-uid": string };
   };
+  syncOutbox: {
+    key: string;
+    value: SyncOutboxOperation;
+    indexes: { "by-uid": string; "by-next-at": number };
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<ReaderDB>> | null = null;
@@ -89,6 +95,11 @@ function getDB() {
           const tombstones = db.createObjectStore("syncTombstones", { keyPath: "id" });
           tombstones.createIndex("by-uid", "uid");
         }
+        if (oldVersion < 6) {
+          const outbox = db.createObjectStore("syncOutbox", { keyPath: "id" });
+          outbox.createIndex("by-uid", "uid");
+          outbox.createIndex("by-next-at", "nextAttemptAt");
+        }
       },
     });
   }
@@ -109,8 +120,10 @@ export async function addBook(
     await tx.objectStore("covers").put({ bookId: book.id, blob: coverBlob });
   }
   await tx.done;
-  void import("./cloud-sync").then((m) => m.pushBook(stamped)).catch(console.error);
-  void import("./cloud-sync").then((m) => m.syncBookFileToDrive(stamped, fileBlob)).catch(console.error);
+  await import("./cloud-sync").then((m) => m.pushBook(stamped)).catch(console.error);
+  await import("./cloud-sync")
+    .then((m) => m.syncBookFileToDrive(stamped, fileBlob))
+    .catch(console.error);
 }
 
 /**
@@ -201,7 +214,7 @@ export async function updateBook(
   if (!existing) return undefined;
   const updated = { ...existing, ...patch, updatedAt: Date.now() };
   await db.put("books", updated);
-  void import("./cloud-sync").then((m) => m.pushBook(updated)).catch(console.error);
+  await import("./cloud-sync").then((m) => m.pushBook(updated)).catch(console.error);
   return updated;
 }
 
@@ -251,7 +264,7 @@ export async function getProgress(
 export async function setProgress(progress: ReadingProgress): Promise<void> {
   const db = await getDB();
   await db.put("progress", progress);
-  void import("./cloud-sync").then((m) => m.pushProgress(progress)).catch(console.error);
+  await import("./cloud-sync").then((m) => m.pushProgress(progress)).catch(console.error);
 }
 
 /** Writes reading progress pulled from Firestore, without pushing back — see upsertBookMetadata. */
@@ -264,7 +277,7 @@ export async function addHighlight(highlight: Highlight): Promise<void> {
   const db = await getDB();
   const stamped: Highlight = { ...highlight, updatedAt: Date.now() };
   await db.put("highlights", stamped);
-  void import("./cloud-sync").then((m) => m.pushHighlight(stamped)).catch(console.error);
+  await import("./cloud-sync").then((m) => m.pushHighlight(stamped)).catch(console.error);
 }
 
 /** Writes a highlight pulled from Firestore, without pushing back — see upsertBookMetadata. */
@@ -293,7 +306,7 @@ export async function updateHighlight(
   if (!existing) return undefined;
   const updated = { ...existing, ...patch, updatedAt: Date.now() };
   await db.put("highlights", updated);
-  void import("./cloud-sync").then((m) => m.pushHighlight(updated)).catch(console.error);
+  await import("./cloud-sync").then((m) => m.pushHighlight(updated)).catch(console.error);
   return updated;
 }
 
@@ -317,7 +330,7 @@ export async function addBookmark(bookmark: Bookmark): Promise<void> {
   const db = await getDB();
   const stamped: Bookmark = { ...bookmark, updatedAt: Date.now() };
   await db.put("bookmarks", stamped);
-  void import("./cloud-sync").then((m) => m.pushBookmark(stamped)).catch(console.error);
+  await import("./cloud-sync").then((m) => m.pushBookmark(stamped)).catch(console.error);
 }
 
 /**
@@ -372,6 +385,82 @@ export async function upsertSyncTombstone(tombstone: SyncTombstone): Promise<voi
 export async function getSyncTombstones(uid: string): Promise<SyncTombstone[]> {
   const db = await getDB();
   return db.getAllFromIndex("syncTombstones", "by-uid", uid);
+}
+
+export async function upsertSyncOutboxOperation(
+  operation: SyncOutboxOperation
+): Promise<void> {
+  const db = await getDB();
+  const existing = await db.get("syncOutbox", operation.id);
+  await db.put("syncOutbox", {
+    ...operation,
+    createdAt: existing?.createdAt ?? operation.createdAt,
+    updatedAt: Math.max(
+      operation.updatedAt,
+      (existing?.updatedAt ?? 0) + 1
+    ),
+  });
+}
+
+export async function getSyncOutboxOperations(
+  uid: string
+): Promise<SyncOutboxOperation[]> {
+  const db = await getDB();
+  const operations = await db.getAllFromIndex("syncOutbox", "by-uid", uid);
+  return operations.sort(
+    (a, b) =>
+      a.nextAttemptAt - b.nextAttemptAt ||
+      a.createdAt - b.createdAt ||
+      a.id.localeCompare(b.id)
+  );
+}
+
+export async function completeSyncOutboxOperation(
+  id: string,
+  attemptedUpdatedAt: number
+): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction("syncOutbox", "readwrite");
+  const existing = await tx.store.get(id);
+  if (existing && existing.updatedAt <= attemptedUpdatedAt) {
+    await tx.store.delete(id);
+  }
+  await tx.done;
+}
+
+export async function failSyncOutboxOperation(
+  attempted: SyncOutboxOperation,
+  lastErrorCode: string,
+  nextAttemptAt: number
+): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction("syncOutbox", "readwrite");
+  const existing = await tx.store.get(attempted.id);
+  if (existing?.updatedAt === attempted.updatedAt) {
+    await tx.store.put({
+      ...existing,
+      attempts: existing.attempts + 1,
+      nextAttemptAt,
+      lastErrorCode,
+    });
+  }
+  await tx.done;
+}
+
+export async function clearSyncStateForUid(uid: string): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction(["syncTombstones", "syncOutbox"], "readwrite");
+  const [tombstoneKeys, outboxKeys] = await Promise.all([
+    tx.objectStore("syncTombstones").index("by-uid").getAllKeys(uid),
+    tx.objectStore("syncOutbox").index("by-uid").getAllKeys(uid),
+  ]);
+  for (const key of tombstoneKeys) {
+    await tx.objectStore("syncTombstones").delete(key);
+  }
+  for (const key of outboxKeys) {
+    await tx.objectStore("syncOutbox").delete(key);
+  }
+  await tx.done;
 }
 
 function localDateKey(date: Date): string {
@@ -449,6 +538,7 @@ export async function clearLocalLibraryData(): Promise<void> {
     "readingStats",
     "driveUploadSessions",
     "syncTombstones",
+    "syncOutbox",
   ] as const;
   const tx = db.transaction(stores, "readwrite");
   await Promise.all(stores.map((store) => tx.objectStore(store).clear()));

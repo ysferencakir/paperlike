@@ -31,12 +31,16 @@ import {
   getAllBooks,
   getAllMetadataForBackup,
   getBook,
+  getBookFile,
   getBookmark,
   getBookmarks,
   getHighlight,
   getHighlights,
   getProgress,
   getSyncTombstones,
+  getSyncOutboxOperations,
+  completeSyncOutboxOperation,
+  failSyncOutboxOperation,
   deleteBookLocal,
   deleteBookmarkLocal,
   deleteHighlightLocal,
@@ -44,12 +48,14 @@ import {
   upsertBookmarkLocal,
   upsertHighlightLocal,
   upsertProgressLocal,
+  upsertSyncOutboxOperation,
   upsertSyncTombstone,
 } from "./storage";
 import { useSettingsStore } from "@/store/useSettingsStore";
 import { DriveSyncError, deleteBookFileFromDrive, uploadBookFileToDrive } from "./drive-sync";
 import { translate } from "./i18n/useTranslation";
 import { toast } from "@/store/useToastStore";
+import { useSyncStatusStore } from "@/store/useSyncStatusStore";
 import type {
   Book,
   BookFormat,
@@ -57,6 +63,7 @@ import type {
   Highlight,
   ReaderSettings,
   ReadingProgress,
+  SyncOutboxOperation,
   SyncTombstone,
 } from "./types";
 import { runTrackedSync } from "./sync-lifecycle";
@@ -66,12 +73,35 @@ import {
   syncTombstoneId,
   tombstoneCovers,
 } from "./sync-tombstones";
+import {
+  classifySyncError,
+  createSyncOutboxOperation,
+  syncRetryDelayMs,
+} from "./sync-outbox";
 
 const MAX_BATCH_OPS = 450; // Firestore's actual limit is 500 — leave headroom.
+const outboxDrains = new Map<string, Promise<void>>();
+const outboxRetryTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+async function currentUser() {
+  const { useAuthStore } = await import("@/store/useAuthStore");
+  return useAuthStore.getState().user;
+}
 
 async function currentUid(): Promise<string | null> {
-  const { useAuthStore } = await import("@/store/useAuthStore");
-  return useAuthStore.getState().user?.uid ?? null;
+  return (await currentUser())?.uid ?? null;
+}
+
+function hasGoogleProvider(
+  user: Awaited<ReturnType<typeof currentUser>>
+): boolean {
+  return Boolean(
+    user &&
+      (user.providerId === "google.com" ||
+        user.providerData.some(
+          (provider) => provider.providerId === "google.com"
+        ))
+  );
 }
 
 function bookDoc(uid: string, bookId: string, db: NonNullable<ReturnType<typeof getFirebaseDb>>) {
@@ -210,6 +240,271 @@ async function queueRemoteTombstone(
     .catch(console.error);
 }
 
+function readerSettingsSnapshot(): ReaderSettings {
+  const settings = useSettingsStore.getState();
+  return {
+    theme: settings.theme,
+    warmth: settings.warmth,
+    brightness: settings.brightness,
+    contrast: settings.contrast,
+    fontFamily: settings.fontFamily,
+    fontSize: settings.fontSize,
+    lineHeight: settings.lineHeight,
+    margin: settings.margin,
+    columns: settings.columns,
+    columnsAutoManaged: settings.columnsAutoManaged,
+    scrollMode: settings.scrollMode,
+    volumeKeyPageTurn: settings.volumeKeyPageTurn,
+    pageTurnAnimation: settings.pageTurnAnimation,
+    autoNightMode: settings.autoNightMode,
+    customBg: settings.customBg,
+    customFg: settings.customFg,
+  };
+}
+
+async function executeOutboxOperation(
+  operation: SyncOutboxOperation,
+  db: Firestore
+): Promise<void> {
+  const { uid, bookId, itemId } = operation;
+  switch (operation.kind) {
+    case "book": {
+      if (!bookId) return;
+      const book = await getBook(bookId);
+      if (!book) return;
+      await setDoc(
+        bookDoc(uid, bookId, db),
+        {
+          title: book.title,
+          author: book.author,
+          format: book.format,
+          addedAt: book.addedAt,
+          fileSize: book.fileSize,
+          category: book.category ?? null,
+          updatedAt: book.updatedAt ?? book.addedAt,
+        },
+        { merge: true }
+      );
+      return;
+    }
+    case "progress": {
+      if (!bookId) return;
+      const progress = await getProgress(bookId);
+      if (!progress) return;
+      await setDoc(
+        bookDoc(uid, bookId, db),
+        {
+          progress: {
+            location: progress.location,
+            percentage: progress.percentage,
+            updatedAt: progress.updatedAt,
+          },
+          updatedAt: progress.updatedAt,
+        },
+        { merge: true }
+      );
+      return;
+    }
+    case "highlight": {
+      if (!bookId || !itemId) return;
+      const highlight = await getHighlight(itemId);
+      if (!highlight || highlight.bookId !== bookId) return;
+      await setDoc(
+        doc(db, "users", uid, "books", bookId, "highlights", itemId),
+        {
+          ...highlight,
+          updatedAt: highlight.updatedAt ?? highlight.createdAt,
+        },
+        { merge: true }
+      );
+      return;
+    }
+    case "bookmark": {
+      if (!bookId || !itemId) return;
+      const bookmark = await getBookmark(itemId);
+      if (!bookmark || bookmark.bookId !== bookId) return;
+      await setDoc(
+        doc(db, "users", uid, "books", bookId, "bookmarks", itemId),
+        {
+          ...bookmark,
+          updatedAt: bookmark.updatedAt ?? bookmark.createdAt,
+        },
+        { merge: true }
+      );
+      return;
+    }
+    case "settings": {
+      await setDoc(
+        doc(db, "users", uid, "settings", "reader"),
+        { ...readerSettingsSnapshot(), updatedAt: Date.now() },
+        { merge: true }
+      );
+      return;
+    }
+    case "drive-upload": {
+      if (!bookId) return;
+      const [book, fileBlob] = await Promise.all([
+        getBook(bookId),
+        getBookFile(bookId),
+      ]);
+      if (!book || !fileBlob) return;
+      const fileId = await uploadBookFileToDrive(
+        bookId,
+        `${bookId}.${book.format}`,
+        fileBlob
+      );
+      if (!fileId) {
+        const pendingError = new Error("Drive upload is pending");
+        Object.assign(pendingError, { code: "drive/unavailable" });
+        throw pendingError;
+      }
+      await setDoc(
+        bookDoc(uid, bookId, db),
+        { driveFileId: fileId, updatedAt: Date.now() },
+        { merge: true }
+      );
+      const latest = await getBook(bookId);
+      if (latest) {
+        await upsertBookMetadata({ ...latest, driveFileId: fileId });
+      }
+    }
+  }
+}
+
+function scheduleOutboxDrain(uid: string, nextAttemptAt: number): void {
+  const existing = outboxRetryTimers.get(uid);
+  if (existing) clearTimeout(existing);
+  const delay = Math.max(1_000, nextAttemptAt - Date.now());
+  const timer = setTimeout(() => {
+    outboxRetryTimers.delete(uid);
+    void drainSyncOutbox(uid).catch(console.error);
+  }, delay);
+  outboxRetryTimers.set(uid, timer);
+}
+
+async function publishOutboxStatus(
+  uid: string,
+  phaseOverride?: "syncing"
+): Promise<void> {
+  const operations = await getSyncOutboxOperations(uid);
+  const first = operations[0];
+  const attentionOperation = operations.find(
+    (operation) =>
+      operation.lastErrorCode === "permission-denied" ||
+      operation.lastErrorCode === "quota-exceeded"
+  );
+  useSyncStatusStore.getState().setStatus({
+    uid,
+    phase: phaseOverride
+      ? phaseOverride
+      : attentionOperation
+        ? "attention"
+        : operations.length
+          ? "retrying"
+          : "idle",
+    pendingCount: operations.length,
+    nextAttemptAt: first?.nextAttemptAt ?? null,
+    lastErrorCode:
+      attentionOperation?.lastErrorCode ?? first?.lastErrorCode ?? null,
+  });
+}
+
+async function scheduleNextOutboxDrain(uid: string): Promise<void> {
+  const [activeUid, configuredDb] = await Promise.all([
+    currentUid(),
+    Promise.resolve(getFirebaseDb()),
+  ]);
+  if (activeUid !== uid || !configuredDb) {
+    const timer = outboxRetryTimers.get(uid);
+    if (timer) clearTimeout(timer);
+    outboxRetryTimers.delete(uid);
+    return;
+  }
+  const remaining = await getSyncOutboxOperations(uid);
+  if (!remaining.length) {
+    const timer = outboxRetryTimers.get(uid);
+    if (timer) clearTimeout(timer);
+    outboxRetryTimers.delete(uid);
+    return;
+  }
+  scheduleOutboxDrain(uid, remaining[0].nextAttemptAt);
+}
+
+export async function drainSyncOutbox(
+  uid: string,
+  options: { force?: boolean; database?: Firestore } = {}
+): Promise<void> {
+  const existing = outboxDrains.get(uid);
+  if (existing) return existing;
+
+  const drain = (async () => {
+    const db = options.database ?? getFirebaseDb();
+    if (!db) return;
+    await publishOutboxStatus(uid, "syncing");
+    await runTrackedSync(uid, async () => {
+      const operations = await getSyncOutboxOperations(uid);
+      for (const operation of operations) {
+        const now = Date.now();
+        if (!options.force && operation.nextAttemptAt > now) continue;
+        try {
+          await executeOutboxOperation(operation, db);
+          await completeSyncOutboxOperation(
+            operation.id,
+            operation.updatedAt
+          );
+        } catch (error) {
+          const attempts = operation.attempts + 1;
+          await failSyncOutboxOperation(
+            operation,
+            classifySyncError(error),
+            now + syncRetryDelayMs(attempts)
+          );
+          if (
+            operation.kind === "drive-upload" &&
+            operation.attempts === 0 &&
+            error instanceof DriveSyncError
+          ) {
+            notifyDriveSyncError(error);
+          }
+        }
+      }
+    });
+  })().finally(async () => {
+    outboxDrains.delete(uid);
+    await scheduleNextOutboxDrain(uid);
+    await publishOutboxStatus(uid);
+  });
+
+  outboxDrains.set(uid, drain);
+  return drain;
+}
+
+async function queueOutboxOperation(
+  operation: SyncOutboxOperation
+): Promise<void> {
+  await upsertSyncOutboxOperation(operation);
+  await publishOutboxStatus(operation.uid, "syncing");
+  void drainSyncOutbox(operation.uid).catch(console.error);
+}
+
+export async function flushCurrentUserSyncOutbox(): Promise<void> {
+  const uid = await currentUid();
+  const db = getFirebaseDb();
+  if (!uid || !db) return;
+  await drainSyncOutbox(uid, { force: true, database: db });
+  const tombstones = await getSyncTombstones(uid);
+  await runTrackedSync(uid, async () => {
+    for (const tombstone of newestTombstones(tombstones).values()) {
+      await setDoc(
+        tombstoneDoc(uid, tombstone.id, db),
+        remoteTombstoneData(tombstone),
+        { merge: true }
+      );
+      await pruneRemoteTombstone(uid, tombstone, db);
+    }
+  });
+}
+
 /**
  * Push a single book's metadata (and, if given, its progress) after a local
  * add/rename. No-ops when signed out or Firebase isn't configured — every
@@ -218,52 +513,21 @@ async function queueRemoteTombstone(
  */
 export async function pushBook(book: Book, progress?: ReadingProgress): Promise<void> {
   const uid = await currentUid();
-  const db = getFirebaseDb();
-  if (!uid || !db) return;
-  await runTrackedSync(uid, () =>
-    setDoc(
-      bookDoc(uid, book.id, db),
-      {
-        title: book.title,
-        author: book.author,
-        format: book.format,
-        addedAt: book.addedAt,
-        fileSize: book.fileSize,
-        category: book.category ?? null,
-        ...(progress
-          ? {
-              progress: {
-                location: progress.location,
-                percentage: progress.percentage,
-                updatedAt: progress.updatedAt,
-              },
-            }
-          : {}),
-        updatedAt: book.updatedAt ?? Date.now(),
-      },
-      { merge: true }
-    )
+  if (!uid) return;
+  await queueOutboxOperation(
+    createSyncOutboxOperation(uid, "book", { bookId: book.id })
   );
+  if (progress) await pushProgress(progress);
 }
 
 /** Push just the progress field for a book (reading position changed). */
 export async function pushProgress(progress: ReadingProgress): Promise<void> {
   const uid = await currentUid();
-  const db = getFirebaseDb();
-  if (!uid || !db) return;
-  await runTrackedSync(uid, () =>
-    setDoc(
-      bookDoc(uid, progress.bookId, db),
-      {
-        progress: {
-          location: progress.location,
-          percentage: progress.percentage,
-          updatedAt: progress.updatedAt,
-        },
-        updatedAt: Date.now(),
-      },
-      { merge: true }
-    )
+  if (!uid) return;
+  await queueOutboxOperation(
+    createSyncOutboxOperation(uid, "progress", {
+      bookId: progress.bookId,
+    })
   );
 }
 
@@ -305,26 +569,14 @@ function notifyDriveSyncError(err: unknown): void {
  * here rather than thrown, so it never rolls back the local add.
  */
 export async function syncBookFileToDrive(book: Book, fileBlob: Blob): Promise<void> {
-  const uid = await currentUid();
-  const db = getFirebaseDb();
-  if (!uid || !db) return;
-  await runTrackedSync(uid, async () => {
-    const filename = `${book.id}.${book.format}`;
-    let fileId: string | null;
-    try {
-      fileId = await uploadBookFileToDrive(book.id, filename, fileBlob);
-    } catch (err) {
-      notifyDriveSyncError(err);
-      return;
-    }
-    if (!fileId) return;
-    await setDoc(bookDoc(uid, book.id, db), { driveFileId: fileId, updatedAt: Date.now() }, { merge: true });
-    // Mirror the file id onto the local book row too, so this same device
-    // already knows it (and can re-download from Drive if its local file
-    // blob is ever lost) without waiting for a future pull.
-    const local = await getBook(book.id);
-    if (local) await upsertBookMetadata({ ...local, driveFileId: fileId });
-  });
+  void fileBlob;
+  const user = await currentUser();
+  if (!user || !hasGoogleProvider(user)) return;
+  await queueOutboxOperation(
+    createSyncOutboxOperation(user.uid, "drive-upload", {
+      bookId: book.id,
+    })
+  );
 }
 
 /** Queues a durable deletion marker, then prunes the older remote book tree. */
@@ -336,14 +588,12 @@ export async function deleteBookRemote(bookId: string): Promise<void> {
 
 export async function pushHighlight(highlight: Highlight): Promise<void> {
   const uid = await currentUid();
-  const db = getFirebaseDb();
-  if (!uid || !db) return;
-  await runTrackedSync(uid, () =>
-    setDoc(
-      doc(db, "users", uid, "books", highlight.bookId, "highlights", highlight.id),
-      { ...highlight, updatedAt: highlight.updatedAt ?? Date.now() },
-      { merge: true }
-    )
+  if (!uid) return;
+  await queueOutboxOperation(
+    createSyncOutboxOperation(uid, "highlight", {
+      bookId: highlight.bookId,
+      itemId: highlight.id,
+    })
   );
 }
 
@@ -355,14 +605,12 @@ export async function deleteHighlightRemote(bookId: string, id: string): Promise
 
 export async function pushBookmark(bookmark: Bookmark): Promise<void> {
   const uid = await currentUid();
-  const db = getFirebaseDb();
-  if (!uid || !db) return;
-  await runTrackedSync(uid, () =>
-    setDoc(
-      doc(db, "users", uid, "books", bookmark.bookId, "bookmarks", bookmark.id),
-      { ...bookmark, updatedAt: bookmark.updatedAt ?? Date.now() },
-      { merge: true }
-    )
+  if (!uid) return;
+  await queueOutboxOperation(
+    createSyncOutboxOperation(uid, "bookmark", {
+      bookId: bookmark.bookId,
+      itemId: bookmark.id,
+    })
   );
 }
 
@@ -375,30 +623,8 @@ export async function deleteBookmarkRemote(bookId: string, id: string): Promise<
 /** Push the current reader settings (called whenever they change while signed in). */
 export async function pushSettingsSnapshot(): Promise<void> {
   const uid = await currentUid();
-  const db = getFirebaseDb();
-  if (!uid || !db) return;
-  await runTrackedSync(uid, async () => {
-    const s = useSettingsStore.getState();
-    const settings: ReaderSettings = {
-      theme: s.theme,
-      warmth: s.warmth,
-      brightness: s.brightness,
-      contrast: s.contrast,
-      fontFamily: s.fontFamily,
-      fontSize: s.fontSize,
-      lineHeight: s.lineHeight,
-      margin: s.margin,
-      columns: s.columns,
-      columnsAutoManaged: s.columnsAutoManaged,
-      scrollMode: s.scrollMode,
-      volumeKeyPageTurn: s.volumeKeyPageTurn,
-      pageTurnAnimation: s.pageTurnAnimation,
-      autoNightMode: s.autoNightMode,
-      customBg: s.customBg,
-      customFg: s.customFg,
-    };
-    await setDoc(doc(db, "users", uid, "settings", "reader"), { ...settings, updatedAt: Date.now() }, { merge: true });
-  });
+  if (!uid) return;
+  await queueOutboxOperation(createSyncOutboxOperation(uid, "settings"));
 }
 
 /**
@@ -414,6 +640,7 @@ export async function pushSettingsSnapshot(): Promise<void> {
 export async function pushLibrarySnapshot(uid: string): Promise<void> {
   const db = getFirebaseDb();
   if (!db) return;
+  await drainSyncOutbox(uid, { force: true, database: db });
   await runTrackedSync(uid, async () => {
 
   const [books, metadata, localTombstones] = await Promise.all([
@@ -508,27 +735,8 @@ export async function pushLibrarySnapshot(uid: string): Promise<void> {
     );
   }
 
-  const s = useSettingsStore.getState();
-  const settings: ReaderSettings = {
-    theme: s.theme,
-    warmth: s.warmth,
-    brightness: s.brightness,
-    contrast: s.contrast,
-    fontFamily: s.fontFamily,
-    fontSize: s.fontSize,
-    lineHeight: s.lineHeight,
-    margin: s.margin,
-    columns: s.columns,
-    columnsAutoManaged: s.columnsAutoManaged,
-    scrollMode: s.scrollMode,
-    volumeKeyPageTurn: s.volumeKeyPageTurn,
-    pageTurnAnimation: s.pageTurnAnimation,
-    autoNightMode: s.autoNightMode,
-    customBg: s.customBg,
-    customFg: s.customFg,
-  };
   enqueue(doc(db, "users", uid, "settings", "reader"), {
-    ...settings,
+    ...readerSettingsSnapshot(),
     updatedAt: Date.now(),
   });
 

@@ -1,0 +1,70 @@
+name: Android Release
+
+# Produces a signed release AAB for upload to Play Console.
+# Requires these repository secrets (see PROJECT_DOCUMENTATION.md § 20.7 for
+# keystore handling guidance):
+#   PAPERLIKE_KEYSTORE_BASE64    - base64-encoded release .jks/.keystore file
+#   PAPERLIKE_KEYSTORE_PASSWORD  - keystore password
+#   PAPERLIKE_KEY_ALIAS          - signing key alias
+#   PAPERLIKE_KEY_PASSWORD       - signing key password
+# Optional secret:
+#   PAPERLIKE_GOOGLE_SERVICES_JSON_BASE64 - base64-encoded google-services.json
+#     (omit to build without Crashlytics/Analytics wiring)
+#
+# Does not run automatically on push - it produces a signed, store-ready
+# artifact and should only run when a maintainer deliberately cuts a release.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Decode release keystore
+        run: |
+          mkdir -p android/app/keystore
+          echo "${{ secrets.PAPERLIKE_KEYSTORE_BASE64 }}" | base64 -d > android/app/keystore/release.jks
+
+      - name: Decode google-services.json
+        if: ${{ secrets.PAPERLIKE_GOOGLE_SERVICES_JSON_BASE64 != '' }}
+        run: echo "${{ secrets.PAPERLIKE_GOOGLE_SERVICES_JSON_BASE64 }}" | base64 -d > android/app/google-services.json
+
+      - name: Build static export and sync Android project
+        run: npm run cap:sync
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Build release AAB
+        working-directory: android
+        env:
+          PAPERLIKE_KEYSTORE_PATH: ${{ github.workspace }}/android/app/keystore/release.jks
+          PAPERLIKE_KEYSTORE_PASSWORD: ${{ secrets.PAPERLIKE_KEYSTORE_PASSWORD }}
+          PAPERLIKE_KEY_ALIAS: ${{ secrets.PAPERLIKE_KEY_ALIAS }}
+          PAPERLIKE_KEY_PASSWORD: ${{ secrets.PAPERLIKE_KEY_PASSWORD }}
+          PAPERLIKE_VERSION_CODE: ${{ github.run_number }}
+        run: ./gradlew bundleRelease --no-daemon
+
+      - name: Remove decoded keystore
+        if: always()
+        run: rm -f android/app/keystore/release.jks
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: android/app/build/outputs/bundle/release/app-release.aab

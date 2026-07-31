@@ -360,6 +360,17 @@ export const en: Record<keyof typeof tr, string> = {
   "account.deleteError.drive": "Firestore data was deleted, but the Drive folder could not be removed. Your account was kept; try again.",
   "account.deleteError.auth": "Remote data was deleted, but the Firebase account could not be removed. Your account remains; sign in again and retry.",
   "account.deleteError.generic": "Account deletion did not complete. The account is not reported as deleted; please try again.",
+  "syncStatus.title": "Cloud sync",
+  "syncStatus.idle": "All pending changes have been uploaded.",
+  "syncStatus.syncing": "Uploading changes…",
+  "syncStatus.retrying": "Changes will be retried when the connection returns.",
+  "syncStatus.attention": "Some changes need your attention.",
+  "syncStatus.pending": "{count} changes pending.",
+  "syncStatus.permission": "Renew Google/Firebase access and try again.",
+  "syncStatus.quota": "Check your cloud storage quota and try again.",
+  "syncStatus.network": "The last attempt failed because of a network or service error.",
+  "syncStatus.retryNow": "Retry now",
+  "syncStatus.retryingNow": "Retrying…",
 
   // Privacy / diagnostics
   "privacy.crashReportingTitle": "Privacy and diagnostics",

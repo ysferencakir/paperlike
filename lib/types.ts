@@ -157,6 +157,32 @@ export interface SyncTombstone {
   deletedAt: number;
 }
 
+export type SyncOutboxKind =
+  | "book"
+  | "progress"
+  | "highlight"
+  | "bookmark"
+  | "settings"
+  | "drive-upload";
+
+/**
+ * A coalesced pointer to the latest local state that still needs to reach a
+ * remote service. Payloads are deliberately not copied here: the executor
+ * reloads the current IndexedDB/Zustand value by id before every attempt.
+ */
+export interface SyncOutboxOperation {
+  id: string;
+  uid: string;
+  kind: SyncOutboxKind;
+  bookId?: string;
+  itemId?: string;
+  createdAt: number;
+  updatedAt: number;
+  attempts: number;
+  nextAttemptAt: number;
+  lastErrorCode?: string;
+}
+
 /** One day's reading time, local calendar date (YYYY-MM-DD). */
 export interface ReadingStatDay {
   date: string;

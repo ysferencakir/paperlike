@@ -17,15 +17,18 @@ import {
 } from "firebase/firestore";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { deleteFirestoreUserTree } from "@/lib/account-deletion";
-import { pullLibrarySnapshot } from "@/lib/cloud-sync";
+import { drainSyncOutbox, pullLibrarySnapshot } from "@/lib/cloud-sync";
 import {
   getBook,
   getBookmarks,
   getHighlights,
+  getSyncOutboxOperations,
   upsertBookMetadata,
   upsertBookmarkLocal,
   upsertHighlightLocal,
+  upsertSyncOutboxOperation,
 } from "@/lib/storage";
+import { createSyncOutboxOperation } from "@/lib/sync-outbox";
 import { syncTombstoneId } from "@/lib/sync-tombstones";
 
 const PROJECT_ID = "demo-paperlike-rules";
@@ -253,5 +256,36 @@ describe("SEC-CLOUD-001 Firestore uid isolation", () => {
     expect(await getBook(childDeleteBookId)).toBeDefined();
     expect(await getHighlights(childDeleteBookId)).toEqual([]);
     expect(await getBookmarks(childDeleteBookId)).toEqual([]);
+  });
+
+  it("replays a persisted outbox mutation and removes it only after Firestore accepts it", async () => {
+    const alice = dbFor("alice");
+    const bookId = "outbox-restart-book";
+    await upsertBookMetadata({
+      id: bookId,
+      title: "Restart-safe",
+      author: "Paperlike",
+      format: "pdf",
+      addedAt: 100,
+      fileSize: 200,
+      updatedAt: 300,
+    });
+    await upsertSyncOutboxOperation(
+      createSyncOutboxOperation("alice", "book", {
+        bookId,
+        now: 400,
+      })
+    );
+
+    await drainSyncOutbox("alice", { force: true, database: alice });
+
+    const remote = await getDoc(doc(alice, "users", "alice", "books", bookId));
+    expect(remote.exists()).toBe(true);
+    expect(remote.data()).toMatchObject({
+      title: "Restart-safe",
+      author: "Paperlike",
+      updatedAt: 300,
+    });
+    expect(await getSyncOutboxOperations("alice")).toEqual([]);
   });
 });

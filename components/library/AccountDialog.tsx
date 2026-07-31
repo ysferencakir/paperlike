@@ -19,6 +19,7 @@ import {
   getAccountReauthenticationKind,
 } from "@/lib/account-deletion";
 import { CrashReportingConsent } from "./CrashReportingConsent";
+import { SyncStatusCard } from "./SyncStatusCard";
 
 type Mode = "signIn" | "signUp";
 type DeleteStep = "closed" | "scope" | "final";
@@ -261,6 +262,7 @@ export function AccountDialog({
                 {t("account.deleteEntry")}
               </Button>
             </div>
+            <SyncStatusCard />
             <CrashReportingConsent />
             <DialogFooter>
               <Button variant="outline" onClick={() => handleOpenChange(false)}>

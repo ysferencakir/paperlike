@@ -23,7 +23,7 @@ import {
   deleteAppFolderFromDrive,
 } from "./drive-sync";
 import { getFirebaseAuth, getFirebaseDb } from "./firebase";
-import { clearLocalLibraryData } from "./storage";
+import { clearLocalLibraryData, clearSyncStateForUid } from "./storage";
 import { pauseSyncForAccountDeletion, resumeSyncAfterAccountDeletion } from "./sync-lifecycle";
 
 export type AccountDeletionStage =
@@ -183,6 +183,7 @@ async function deleteCurrentAuthAccount(expectedUid: string): Promise<void> {
   await Promise.allSettled([
     FirebaseAuthentication.signOut(),
     auth.currentUser ? firebaseSignOut(auth) : Promise.resolve(),
+    clearSyncStateForUid(expectedUid),
   ]);
   clearDriveAccessToken();
   const { useAuthStore } = await import("@/store/useAuthStore");

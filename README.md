@@ -112,7 +112,7 @@ PWA görsel referansları: [`docs/visual-references/`](./docs/visual-references/
 | Büyük kitap optimizasyonu | Kısmi; PDF lazy rendering, kontrollü arama, backup/restore ve kapak LRU/thumbnail optimizasyonu mevcut |
 | Google Play production dağıtımı | Planlı |
 | Koleksiyonlar/etiketler | Planlı |
-| Bulut senkronizasyonu | Firestore push/pull, UID-scoped kitap/vurgu/yer imi tombstone'u ve Drive upload/tembel download mevcut; genel outbox/backoff ve tombstone TTL/ack planlı |
+| Bulut senkronizasyonu | Firestore push/pull, UID-scoped tombstone, temel mutasyonlarda IndexedDB outbox + bounded backoff + online/startup/manual flush, hesap ekranında sync durumu ve Drive resumable upload mevcut; dead-letter ve tombstone TTL/ack planlı |
 | iOS | Planlı |
 
 ## Teknik yığın

@@ -360,6 +360,7 @@ export const tr = {
   "account.deleteError.drive": "Firestore verileri silindi ancak Drive klasörü silinemedi. Hesabın korundu; tekrar dene.",
   "account.deleteError.auth": "Uzak veriler silindi ancak Firebase hesabı silinemedi. Hesabın korunuyor; yeniden giriş yapıp tekrar dene.",
   "account.deleteError.generic": "Hesap silme işlemi tamamlanamadı. Hesabın silindiği doğrulanmadı; tekrar dene.",
+  "account.privacyPolicyLink": "Gizlilik politikası",
   "syncStatus.title": "Bulut senkronizasyonu",
   "syncStatus.idle": "Tüm bekleyen değişiklikler gönderildi.",
   "syncStatus.syncing": "Değişiklikler gönderiliyor…",

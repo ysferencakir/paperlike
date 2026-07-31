@@ -90,15 +90,25 @@ tahminidir. Her sürüm planında test kanıtlarıyla yeniden değerlendirilmeli
 
 1. Android native sistem akışlarının gerçek cihaz/otomasyon matrisinin eksikliği.
 2. Büyük EPUB/PDF dosyaları için ölçülmüş performans sınırlarının olmaması.
-3. Release signing, AAB ve Play Store dağıtım hattının bulunmaması.
-4. Gizlilik politikası ve Data Safety doğrulamasının tamamlanmamış olması.
+3. Release signing hattı iskeleti var (`android-release.yml`, `PAPERLIKE_VERSION_CODE`)
+   ancak gerçek keystore henüz oluşturulmadı ve `PAPERLIKE_*` GitHub secret'ları
+   girilmedi; iskelet bir signed AAB üretmeden doğrulanamaz.
+4. Gizlilik politikası (`/privacy`) ve hesap silme (`/account-deletion`) sayfaları
+   yayında ama `[PLACEHOLDER]` alanları (yürürlük tarihi, geliştirici/legal ad,
+   iletişim e-postası, retention süresi, hedef kitle kararı) doldurulmadı; Data
+   Safety formu bu doldurulmadan doğru cevaplanamaz.
 5. Kalan production PostCSS bildirimi ve dev-tool bağımlılık risklerinin upstream
    çözümlerinin beklenmesi.
 
 ### 0.4 Sıradaki önerilen üç iş
 
-1. Yeni kalite kapılarını GitHub Actions'ta ilk remote run ile doğrulamak.
-2. Release signing, `versionCode` ve AAB politikasını karara bağlamak.
+1. Release keystore'u oluşturmak, iki şifreli yedek almak (§20.7) ve
+   `PAPERLIKE_KEYSTORE_BASE64`/`PAPERLIKE_KEYSTORE_PASSWORD`/`PAPERLIKE_KEY_ALIAS`/
+   `PAPERLIKE_KEY_PASSWORD` secret'larını girip `android-release.yml`'i bir kez
+   çalıştırarak signed AAB doğrulamak.
+2. `/privacy` ve `/account-deletion` sayfalarındaki placeholder'ları doldurup Play
+   Console'a bağlamak; ardından Data Safety formunu §13.6 aday cevaplarıyla
+   doldurmak.
 3. Outbox Firestore restart testini emülatörde çalıştırmak; ardından terminal
    hata/dead-letter ve tombstone TTL/ack kararını tamamlamak (`RM-F-01/02`).
 
@@ -2902,7 +2912,7 @@ kanıtları ayrıdır.
 | ISS-010 | Web için merkezi hata izleme yok | Web production sorunları görünmez | Orta | Tarayıcı console ve kullanıcı raporu | Açık / web | Faz A/C |
 | ISS-011 | Landscape/foldable gerçek cihaz matrisi eksik | Hinge/posture, OEM WebView veya native pencere değişiminde layout kırılabilir | Orta | 4 profilli web viewport/yön değişimi matrisi 8/8 geçti | Kısmi / QA; fiziksel tablet/foldable açık | Faz A |
 | ISS-012 | EPUB iframe Google Fonts isteği yapabilir | Tam offline font deneyimi garanti değil | Orta | Sistem/fallback font | Açık / PWA | Faz C |
-| ISS-013 | Release keystore/AAB hattı yok | Play Store production yayını yapılamaz | Kritik | Debug/internal artifact | Açık / release | Faz D |
+| ISS-013 | Release keystore/AAB hattı yok | Play Store production yayını yapılamaz | Kritik | `android-release.yml` CI iskeleti eklendi (secret'lardan signed `bundleRelease`, otomatik `versionCode`); gerçek keystore ve secret'lar henüz girilmedi | Kısmi / release; keystore oluşturma ve ilk signed run açık | Faz D |
 | ISS-014 | Backup nihai ZIP üretimi JSZip ile bellekte çalışır | Büyük kitaplıkta OOM/uzun bloklama | Yüksek | Blob girdisi, EPUB/PDF `STORE`, aşama ilerlemesi/iptal, CRC ve eksik arşiv ön doğrulaması eklendi | Kısmi / performance; gerçek streaming/worker ve cihaz baseline'ı açık | Faz B |
 | ISS-015 | Tarayıcı destek matrisi otomatik değildi | Web regresyonu geç fark edilirdi | Orta | Beş Playwright profili + 10 masaüstü/mobil görsel durum CI'a eklendi | Temel çözüldü / QA; önceki major ve gerçek cihazlar açık | Faz A/C |
 | ISS-016 | Kitap metadata'sı var fakat file Blob yoksa veya bootstrap reddedilirse reader sonsuz spinner'da kalabilir | Kullanıcı kitabı açamaz ve nedenini göremez | Yüksek | `ReaderView` artık ayrı hata gösterip kütüphaneye dönüş sunuyor | Çözüldü / reader; `IT-READER-LOAD-001` geçti | Faz A |

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useAuthStore } from "@/store/useAuthStore";
 import { toast } from "@/store/useToastStore";
 import { Button } from "@/components/ui/button";
@@ -264,6 +265,12 @@ export function AccountDialog({
             </div>
             <SyncStatusCard />
             <CrashReportingConsent />
+            <Link
+              href="/privacy"
+              className="self-start text-xs text-muted-foreground underline underline-offset-2"
+            >
+              {t("account.privacyPolicyLink")}
+            </Link>
             <DialogFooter>
               <Button variant="outline" onClick={() => handleOpenChange(false)}>
                 {t("common.cancel")}
@@ -327,6 +334,12 @@ export function AccountDialog({
               )}
             </div>
             <CrashReportingConsent />
+            <Link
+              href="/privacy"
+              className="self-start text-xs text-muted-foreground underline underline-offset-2"
+            >
+              {t("account.privacyPolicyLink")}
+            </Link>
 
             <DialogFooter className="flex-col items-stretch gap-2 sm:flex-col">
               <Button

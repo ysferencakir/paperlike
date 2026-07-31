@@ -30,7 +30,7 @@ test("E2E-W-READER-001 opens a library book and persists page progress", async (
       );
 
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open("epub-reader", 3);
+        const request = indexedDB.open("epub-reader");
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });
@@ -63,7 +63,7 @@ test("E2E-W-READER-001 opens a library book and persists page progress", async (
   const storedLocation = () =>
     page.evaluate(async (id) => {
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open("epub-reader", 3);
+        const request = indexedDB.open("epub-reader");
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });

@@ -18,11 +18,38 @@ export const en: Record<keyof typeof tr, string> = {
   "openFile.importedFilename": "Imported Book",
   "openFile.added": "Book added.",
   "openFile.failed": "Couldn't open the book.",
+  "importBook.fileTooLarge": "The book file exceeds the 1 GB safety limit.",
+  "importBook.invalidContent": "The file content does not match the EPUB or PDF format.",
 
   // PWA
   "pwa.updateReady": "A new version of Paperlike is ready.",
   "pwa.update": "Update",
   "pwa.later": "Later",
+  "pwa.updating": "Activating the new version…",
+  "pwa.updateFailed": "The new version couldn't be prepared. The current version remains available.",
+  "pwa.cacheFailed": "New offline content couldn't be saved. Your existing data is preserved.",
+  "pwa.retry": "Try Again",
+  "pwa.toolsAriaLabel": "App and storage",
+  "pwa.toolsTitle": "App and Storage",
+  "pwa.toolsDescription": "Install Paperlike and manage the local browser space used by your books.",
+  "pwa.installTitle": "Install the app",
+  "pwa.installDescription": "Install Paperlike on your device for quicker access and an app-like view.",
+  "pwa.install": "Install Paperlike",
+  "pwa.installed": "Paperlike is installed on this device.",
+  "pwa.installIosHint": "In Safari, tap Share and then Add to Home Screen.",
+  "pwa.installBrowserHint": "The install option will appear here when it is available. You can also use “Install app” or “Add to home screen” in your browser menu.",
+  "pwa.storageTitle": "Local storage",
+  "pwa.storageLoading": "Reading storage information…",
+  "pwa.storageUnsupported": "This browser does not expose storage quota information.",
+  "pwa.storageUsed": "{usage} of {quota} used",
+  "pwa.storageAvailable": "About {available} available",
+  "pwa.storageUsageAriaLabel": "Local storage usage",
+  "pwa.storageLow": "Available space is running low. Remove unneeded files or back up your library before adding more books.",
+  "pwa.storagePersistent": "Persistent storage protection is active.",
+  "pwa.storagePersistenceDescription": "Reduce the chance of the browser automatically clearing Paperlike data when it needs space.",
+  "pwa.storageRequestPersistence": "Request Persistent Storage",
+  "pwa.storagePersistenceDenied": "The browser did not grant this request. Installing and using the app regularly may help it qualify later.",
+  "pwa.storageNotBackup": "This protection is not a backup. Create a separate library backup to keep your books safe.",
 
   // Backup menu
   "backup.shareTitle": "Library Backup",
@@ -140,6 +167,7 @@ export const en: Record<keyof typeof tr, string> = {
   "upload.importing": "Importing book…",
   "upload.idle": "Upload an EPUB or PDF",
   "upload.hint": "Drag and drop, or click to choose",
+  "upload.insufficientStorage": "There is not enough safe local space for these books. Free up space or back up your library first.",
 
   // Break suggestion
   "break.suggestion": "You've been reading for a while. Your eyes might appreciate a short break 🌿",
@@ -221,6 +249,7 @@ export const en: Record<keyof typeof tr, string> = {
   "reader.loadError":
     "Something went wrong while loading the book data. Return to the library and try again.",
   "reader.loading": "Loading book",
+  "reader.downloadingFile": "Downloading the book from the cloud…",
   "reader.backToLibrary": "Back to library",
   "reader.stopReadAloud": "Stop reading aloud",
   "reader.readAloud": "Read aloud",
@@ -308,4 +337,10 @@ export const en: Record<keyof typeof tr, string> = {
   "account.errorInvalidEmail": "Invalid email address.",
   "account.errorUserNotFound": "No account found for this email.",
   "account.errorGeneric": "Something went wrong. Please try again.",
+
+  // Google Drive sync errors (background book-file backup failures)
+  "drive.errorQuotaExceeded": "Drive is out of storage, the book couldn't be backed up.",
+  "drive.errorPermissionDenied": "Drive access was revoked, please sign in again.",
+  "drive.errorNotFound": "The book file couldn't be found on Drive.",
+  "drive.errorGeneric": "Couldn't back up the book to Drive, will retry later.",
 };

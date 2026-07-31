@@ -7,6 +7,10 @@ import {
   importMetadata,
 } from "./storage";
 import type { Translate } from "./i18n/useTranslation";
+import {
+  isWithinZipResourceBudget,
+  readZipBudgetEntries,
+} from "./zip-budget";
 
 const MANIFEST_NAME = "manifest.json";
 const BACKUP_FORMAT_VERSION = 1;
@@ -267,6 +271,16 @@ export async function importLibrary(
   reportProgress(options, "validating", 0, 1);
   const zip = await JSZip.loadAsync(zipBinaryInput(zipBlob), { checkCRC32: true });
   throwIfAborted(options?.signal);
+  const budgetEntries = readZipBudgetEntries(zip.files);
+  if (
+    !budgetEntries ||
+    !isWithinZipResourceBudget(zipBlob.size, budgetEntries)
+  ) {
+    throw new Error(t("backupLib.invalidFile"));
+  }
+  const expandedSizeByName = new Map(
+    budgetEntries.map((entry) => [entry.name, entry.uncompressedSize])
+  );
   const manifestEntry = zip.file(MANIFEST_NAME);
   if (!manifestEntry) throw new Error(t("backupLib.invalidFile"));
 
@@ -289,7 +303,11 @@ export async function importLibrary(
   // Validate the full file map before the first IndexedDB mutation. A partial
   // or malformed archive must not leave half a restore in the library.
   for (const book of manifest.books) {
-    if (!zip.file(`files/${book.id}.${fileExtension(book.format)}`)) {
+    const fileName = `files/${book.id}.${fileExtension(book.format)}`;
+    if (
+      !zip.file(fileName) ||
+      expandedSizeByName.get(fileName) !== book.fileSize
+    ) {
       throw new Error(t("backupLib.invalidFile"));
     }
   }

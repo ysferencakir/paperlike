@@ -9,6 +9,10 @@ export interface Book {
   fileSize: number;
   /** Freeform shelf category, e.g. "Roman", "Bilim Kurgu". Unset = uncategorized. */
   category?: string;
+  /** Last local metadata write, used to resolve last-write-wins conflicts when pulling from Firestore. */
+  updatedAt?: number;
+  /** This book's file id in the user's Google Drive "Paperlike" folder, once uploaded. See lib/drive-sync.ts. */
+  driveFileId?: string;
 }
 
 export interface BookFile {
@@ -119,6 +123,8 @@ export interface Highlight {
   importance: ImportanceLevel;
   note?: string;
   createdAt: number;
+  /** Last local write, used to resolve last-write-wins conflicts when pulling from Firestore. */
+  updatedAt?: number;
 }
 
 export interface Bookmark {
@@ -135,4 +141,20 @@ export interface Bookmark {
 export interface ReadingStatDay {
   date: string;
   minutes: number;
+}
+
+/**
+ * A Google Drive resumable-upload session that's still in flight (or was
+ * interrupted), persisted so an app restart/kill can pick the upload back up
+ * instead of restarting the book file transfer from byte 0. See
+ * lib/drive-sync.ts.
+ */
+export interface DriveUploadSession {
+  bookId: string;
+  /** The `Location` URI Drive returned when the resumable session was initiated. */
+  sessionUri: string;
+  filename: string;
+  /** Total blob size in bytes — used both to build Content-Range headers and to detect a stale session (file changed size since). */
+  totalBytes: number;
+  createdAt: number;
 }

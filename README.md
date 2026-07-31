@@ -8,7 +8,7 @@ ile Android uygulamasına paketlenir. Kitaplar, ilerleme, notlar ve istatistikle
 öncelikle kullanıcının cihazında tutulur.
 
 > Proje prototip aşamasındadır. Temel okuma deneyimi geniştir; production
-> dağıtımı, büyük dosya performansı, PWA install/storage UX'i ve iki yönlü bulut senkronizasyonu
+> dağıtımı, büyük dosya performansının gerçek cihaz ölçümleri ve iki yönlü bulut senkronizasyonu
 > hâlâ geliştirilmektedir.
 
 ## Ana dokümantasyon
@@ -24,8 +24,14 @@ stratejisi, bilinen sorunlar ve ayrıntılı yol haritası için:
 - [Güncel özellik envanteri](./PROJECT_DOCUMENTATION.md#3-güncel-özellik-envanteri)
 - [Platform yetenek matrisi](./PROJECT_DOCUMENTATION.md#4-platform-yetenek-matrisi)
 - [Teknik mimari](./PROJECT_DOCUMENTATION.md#6-yüksek-seviye-mimari)
+- [Ekran ve navigasyon haritası](./PROJECT_DOCUMENTATION.md#911-ekran-ve-navigasyon-haritası)
 - [State ve veri modeli](./PROJECT_DOCUMENTATION.md#8-state-ve-kalıcılık-modeli)
+- [Veri yaşam döngüsü ve kurtarma hedefleri](./PROJECT_DOCUMENTATION.md#86-veri-yaşam-döngüsü-matrisi)
+- [Bağımlılık, lisans ve güncelleme politikası](./PROJECT_DOCUMENTATION.md#55-bağımlılık-lisans-ve-güncelleme-politikası)
+- [Yerel uygulama güvenlik tehdit modeli](./PROJECT_DOCUMENTATION.md#135-yerel-uygulama-güvenlik-tehdit-modeli)
+- [Gizlilik politikası ve Data Safety taslağı](./PROJECT_DOCUMENTATION.md#136-gizlilik-politikası-ve-google-play-data-safety-çalışma-taslağı)
 - [Test stratejisi](./PROJECT_DOCUMENTATION.md#17-test-stratejisi)
+- [Risk kayıt defteri](./PROJECT_DOCUMENTATION.md#184-olasılık-ve-etki-risk-kayıt-defteri)
 - [Bilinen sorunlar](./PROJECT_DOCUMENTATION.md#18-bilinen-sınırlamalar-ve-teknik-borç)
 - [Yol haritası](./PROJECT_DOCUMENTATION.md#19-yol-haritası)
 - [Yayın kapıları](./PROJECT_DOCUMENTATION.md#20-yayın-kapıları)
@@ -35,6 +41,7 @@ stratejisi, bilinen sorunlar ve ayrıntılı yol haritası için:
 ### Kütüphane
 
 - EPUB/PDF içe aktarma ve metadata/kapak çıkarma
+- Parser öncesi PDF/ZIP imzası ve 1 GiB güvenlik tavanı
 - Grid, liste ve üç boyutlu raf görünümü
 - Arama, sıralama, biçim filtresi ve basit kategori
 - Yeniden adlandırma, bilgi görüntüleme ve ilişkili verilerle silme
@@ -63,9 +70,18 @@ stratejisi, bilinen sorunlar ve ayrıntılı yol haritası için:
 - Kurulabilir web app manifest ve bağımsız Paperlike ikonları
 - Sürümlü service worker app-shell cache'i
 - Yeni sürüm için kullanıcı onaylı güncelle/ertele bildirimi
+- Doğrulanmış staging cache, başarısız güncellemede eski sürümü koruma ve yeniden deneme akışı
+- Tarayıcı destekliyorsa tek düğmeyle PWA kurulumu; iOS ve diğer tarayıcılar için kurulum yönlendirmesi
+- Yerel kota/doluluk görünümü, kalıcı depolama isteği ve kitap içe aktarma öncesi güvenli alan kontrolü
+- Chromium, Firefox, WebKit ve mobil profillerde otomatik taşma/dialog uyumluluk matrisi
+- Telefon yatay, tablet dikey/yatay ve foldable-benzeri viewport/yön değişimi matrisi
+- Masaüstü/mobil boş kitaplık, kurulu, offline, güncelleme ve cache-hata görsel referansları
+- Axe WCAG A/AA taraması, klavye/focus ve 320 px yeniden akış kalite kapısı
 - Kütüphane ve reader rotalarının çevrimdışı açılışı
 - PDF worker ve Next.js statik parçalarının önbelleğe alınması
 - Playwright ile gerçek Chromium offline testi
+
+PWA görsel referansları: [`docs/visual-references/`](./docs/visual-references/)
 
 ### Büyük kitap performansı
 
@@ -78,6 +94,7 @@ stratejisi, bilinen sorunlar ve ayrıntılı yol haritası için:
 - 120 sayfalık sentetik PDF, gerçek Chromium E2E testinde en fazla 10 yakın render ile doğrulanır
 - Backup büyük EPUB/PDF girdilerini yeniden sıkıştırmadan ve tarayıcıda eager ArrayBuffer kopyası oluşturmadan ZIP'e ekler
 - Backup/restore aşama ilerlemesi, iptal düğmesi, CRC ve eksik dosya ön doğrulaması içerir
+- Backup restore entry/adet/açılmış boyut/manifest/sıkıştırma oranı bütçelerini kalıcı yazımdan önce uygular
 - Kapaklar viewport'a 300 px yaklaşınca yüklenir ve en fazla 384×576 thumbnail olarak decode edilir
 - Ortak LRU cache 96 kayıt/32 MiB sınırı, eşzamanlı okuma birleştirme ve güvenli object URL tahliyesi kullanır
 
@@ -90,11 +107,11 @@ stratejisi, bilinen sorunlar ve ayrıntılı yol haritası için:
 | Web statik uygulaması | Mevcut prototip |
 | Türkçe/İngilizce | Mevcut |
 | Firebase/auth temeli | Mevcut; senkronizasyon genişletiliyor |
-| PWA/offline app shell | Mevcut; güncelleme bildirimi hazır, install/quota UX'i geliştirilmeli |
+| PWA/offline app shell | Mevcut; kurulum, kota/persistence, atomik cache/rollback, kontrollü güncelleme ve offline app-shell hazır |
 | Büyük kitap optimizasyonu | Kısmi; PDF lazy rendering, kontrollü arama, backup/restore ve kapak LRU/thumbnail optimizasyonu mevcut |
 | Google Play production dağıtımı | Planlı |
 | Koleksiyonlar/etiketler | Planlı |
-| Bulut senkronizasyonu | Tek yönlü Firestore push + Drive upload mevcut; pull/download planlı |
+| Bulut senkronizasyonu | Firestore push/pull ve Drive upload/tembel download mevcut; silme tombstone'u ve dayanıklı genel retry kuyruğu planlı |
 | iOS | Planlı |
 
 ## Teknik yığın
@@ -138,6 +155,10 @@ Tarayıcıda `http://localhost:3000` adresini açın.
 | `npm run test:watch` | Testleri izleme modunda çalıştırır |
 | `npm run test:e2e` | Production build + Chromium E2E testleri |
 | `npm run test:e2e:ui` | Playwright görsel test arayüzü |
+| `npm run test:e2e:compat` | Chromium, Firefox, WebKit ve mobil temel uyumluluk matrisi |
+| `npm run test:responsive` | Telefon yatay, tablet ve foldable-benzeri responsive matris |
+| `npm run test:a11y` | WCAG A/AA, klavye/focus ve 320 px reflow matrisi |
+| `npm run test:visual` | Sürümlü PWA masaüstü/mobil görsel regresyonu |
 | `npm run benchmark:web` | Mevcut `out/` üzerinde web performans benchmarkı |
 | `npm run benchmark:web:build` | Production build + web performans benchmarkı |
 | `npm run benchmark:android:assemble` | Android benchmark hedef APK'larını derler |

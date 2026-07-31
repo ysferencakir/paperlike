@@ -34,11 +34,23 @@ jobs:
       - name: Production build
         run: npm run build
 
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium firefox webkit
 
       - name: Web E2E
         run: npx playwright test
+
+      - name: Browser compatibility matrix
+        run: npx playwright test --config=playwright.compat.config.ts
+
+      - name: Responsive landscape, tablet, and foldable-like matrix
+        run: npx playwright test --config=playwright.responsive.config.ts
+
+      - name: PWA visual states
+        run: npx playwright test --config=playwright.visual.config.ts
+
+      - name: Web accessibility matrix
+        run: npx playwright test --config=playwright.a11y.config.ts
 
       - name: Web performance smoke benchmark
         run: npm run benchmark:web
@@ -49,6 +61,14 @@ jobs:
         with:
           name: playwright-report
           path: playwright-report
+          if-no-files-found: ignore
+
+      - name: Upload PWA visual references
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pwa-visual-references
+          path: test-results/visual
           if-no-files-found: ignore
 
       - name: Upload benchmark report

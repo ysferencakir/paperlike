@@ -7,6 +7,7 @@ import { importBookFile } from "@/lib/import-book";
 import { useLibraryStore } from "@/store/useLibraryStore";
 import { toast } from "@/store/useToastStore";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { canStoreFiles, getWebStorageSnapshot } from "@/lib/pwa-storage";
 
 interface UploadDropzoneProps {
   compact?: boolean;
@@ -29,6 +30,14 @@ export function UploadDropzone({ compact = false, onImported }: UploadDropzonePr
       const fileList = Array.from(files);
       let imported = 0;
       try {
+        const storageSnapshot = await getWebStorageSnapshot().catch(() => null);
+        if (storageSnapshot && !canStoreFiles(fileList, storageSnapshot)) {
+          const message = t("upload.insufficientStorage");
+          toast.error(message);
+          setError(message);
+          return;
+        }
+
         for (const file of fileList) {
           try {
             await importBookFile(file, t);

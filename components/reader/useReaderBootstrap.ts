@@ -5,7 +5,14 @@ import {
   getBookmarks,
   getHighlights,
   getProgress,
+  saveBookCover,
+  saveBookFile,
 } from "@/lib/storage";
+import { downloadBookFileFromDrive } from "@/lib/drive-sync";
+import { invalidateCoverCache } from "@/lib/cover-cache";
+import { parseEpubFile } from "@/lib/epub-loader";
+import { parsePdfFile } from "@/lib/pdf-loader";
+import { translate } from "@/lib/i18n/useTranslation";
 import type { Book, Bookmark, Highlight, ReadingProgress } from "@/lib/types";
 
 export type ReaderBootstrapState =
@@ -17,7 +24,7 @@ export type ReaderBootstrapState =
       initialLocation: undefined;
     }
   | {
-      status: "missingFile";
+      status: "missingFile" | "downloadingFile";
       bookId: string;
       book: Book;
       file: null;
@@ -37,6 +44,8 @@ export interface ReaderBootstrapDependencies {
   getProgress: (bookId: string) => Promise<ReadingProgress | undefined>;
   getHighlights: (bookId: string) => Promise<Highlight[]>;
   getBookmarks: (bookId: string) => Promise<Bookmark[]>;
+  downloadBookFileFromDrive: (fileId: string) => Promise<Blob | null>;
+  saveBookFile: (bookId: string, blob: Blob) => Promise<void>;
 }
 
 const defaultDependencies: ReaderBootstrapDependencies = {
@@ -45,7 +54,31 @@ const defaultDependencies: ReaderBootstrapDependencies = {
   getProgress,
   getHighlights,
   getBookmarks,
+  downloadBookFileFromDrive,
+  saveBookFile,
 };
+
+/**
+ * Best-effort: a book pulled from Firestore has no cover locally yet (covers
+ * aren't synced, only extracted from the file itself at import time). Once
+ * its file is lazily downloaded from Drive, re-run the same extraction so
+ * the library grid stops showing the placeholder cover. Never blocks or
+ * fails the reader open — a broken/unextractable cover just stays a
+ * placeholder.
+ */
+async function regenerateCoverBestEffort(book: Book, blob: Blob): Promise<void> {
+  try {
+    const parsed =
+      book.format === "epub"
+        ? await parseEpubFile(blob, translate)
+        : await parsePdfFile(blob, book.title, translate);
+    if (!parsed.coverBlob) return;
+    await saveBookCover(book.id, parsed.coverBlob);
+    invalidateCoverCache(book.id);
+  } catch {
+    // Best-effort only — the reader itself doesn't depend on this.
+  }
+}
 
 const loadingState = (bookId: string): ReaderBootstrapState => ({
   status: "loading",
@@ -97,6 +130,36 @@ export function useReaderBootstrap(
         }
 
         if (!file) {
+          if (book.driveFileId) {
+            setHighlights([]);
+            setBookmarks([]);
+            setBootstrap({
+              status: "downloadingFile",
+              bookId,
+              book,
+              file: null,
+              initialLocation: undefined,
+            });
+            const downloaded = await dependencies
+              .downloadBookFileFromDrive(book.driveFileId)
+              .catch(() => null);
+            if (cancelled) return;
+            if (downloaded) {
+              await dependencies.saveBookFile(bookId, downloaded);
+              void regenerateCoverBestEffort(book, downloaded);
+              setHighlights(loadedHighlights);
+              setBookmarks(loadedBookmarks);
+              setBootstrap({
+                status: "ready",
+                bookId,
+                book,
+                file: downloaded,
+                initialLocation: progress?.location,
+              });
+              return;
+            }
+          }
+
           setHighlights([]);
           setBookmarks([]);
           setBootstrap({

@@ -1,5 +1,6 @@
 const CACHE_PREFIX = "paperlike-shell-";
-const CACHE_VERSION = `${CACHE_PREFIX}v2`;
+const CACHE_VERSION = `${CACHE_PREFIX}v3`;
+const STAGING_CACHE = `${CACHE_VERSION}-staging`;
 const APP_SHELL = [
   "/",
   "/reader",
@@ -27,14 +28,42 @@ async function cachePageAndAssets(cache, path) {
   );
 }
 
+async function validateAppShell(cache) {
+  for (const path of APP_SHELL) {
+    if (!(await cache.match(path))) {
+      throw new Error(`Precache validation failed for ${path}`);
+    }
+  }
+}
+
+async function prepareAppShell() {
+  await caches.delete(STAGING_CACHE);
+  const staging = await caches.open(STAGING_CACHE);
+
+  try {
+    await staging.addAll(APP_SHELL.slice(2));
+    await Promise.all(
+      APP_SHELL.slice(0, 2).map((path) => cachePageAndAssets(staging, path))
+    );
+    await validateAppShell(staging);
+
+    await caches.delete(CACHE_VERSION);
+    const target = await caches.open(CACHE_VERSION);
+    for (const request of await staging.keys()) {
+      const response = await staging.match(request);
+      if (!response) throw new Error(`Missing staged response for ${request.url}`);
+      await target.put(request, response);
+    }
+    await validateAppShell(target);
+    await caches.delete(STAGING_CACHE);
+  } catch (error) {
+    await Promise.all([caches.delete(STAGING_CACHE), caches.delete(CACHE_VERSION)]);
+    throw error;
+  }
+}
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    (async () => {
-      const cache = await caches.open(CACHE_VERSION);
-      await cache.addAll(APP_SHELL.slice(2));
-      await Promise.all(APP_SHELL.slice(0, 2).map((path) => cachePageAndAssets(cache, path)));
-    })()
-  );
+  event.waitUntil(prepareAppShell());
 });
 
 self.addEventListener("message", (event) => {
@@ -46,6 +75,8 @@ self.addEventListener("message", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
+      const activeCache = await caches.open(CACHE_VERSION);
+      await validateAppShell(activeCache);
       const names = await caches.keys();
       await Promise.all(
         names
@@ -57,18 +88,40 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+async function notifyClients(message) {
+  const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  await Promise.all(clients.map((client) => client.postMessage(message)));
+}
+
+async function safeCachePut(cache, request, response) {
+  try {
+    await cache.put(request, response);
+  } catch {
+    try {
+      await notifyClients({ type: "PWA_CACHE_ERROR" });
+    } catch {
+      // Cache reporting must never replace a valid network response with an error.
+    }
+  }
+}
+
 async function networkFirst(request) {
   const cache = await caches.open(CACHE_VERSION);
   try {
     const response = await fetch(request);
-    if (response.ok) await cache.put(request, response.clone());
+    if (response.ok) {
+      await safeCachePut(cache, request, response.clone());
+    }
     return response;
   } catch {
-    return (
+    const cached =
       (await cache.match(request)) ||
       (await cache.match(new URL(request.url).pathname)) ||
-      (await cache.match("/"))
-    );
+      (await cache.match("/"));
+    return cached || new Response("Paperlike is offline.", {
+      status: 503,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
   }
 }
 
@@ -78,7 +131,7 @@ async function staleWhileRevalidate(request, event) {
   const network = fetch(request)
     .then(async (response) => {
       if (response.ok && response.type !== "opaque") {
-        await cache.put(request, response.clone());
+        await safeCachePut(cache, request, response.clone());
       }
       return response;
     })
@@ -87,7 +140,7 @@ async function staleWhileRevalidate(request, event) {
     event.waitUntil(network);
     return cached;
   }
-  return network;
+  return (await network) || Response.error();
 }
 
 self.addEventListener("fetch", (event) => {

@@ -12,6 +12,11 @@
     "test:watch": "vitest",
     "test:e2e": "npm run build && playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "test:e2e:compat": "npm run build && playwright test --config=playwright.compat.config.ts",
+    "test:responsive": "npm run build && playwright test --config=playwright.responsive.config.ts",
+    "test:a11y": "npm run build && playwright test --config=playwright.a11y.config.ts",
+    "test:visual": "npm run build && playwright test --config=playwright.visual.config.ts",
+    "test:visual:update": "npm run build && cross-env UPDATE_VISUAL_REFERENCES=1 playwright test --config=playwright.visual.config.ts",
     "benchmark:web": "playwright test --config=playwright.benchmark.config.ts",
     "benchmark:web:build": "npm run build && npm run benchmark:web",
     "benchmark:android": "node scripts/run-android-benchmark.mjs",
@@ -54,6 +59,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.4.2",
     "@playwright/test": "^1.62.0",

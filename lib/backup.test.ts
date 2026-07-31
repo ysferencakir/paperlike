@@ -74,11 +74,11 @@ describe("IT-BACKUP-ROUNDTRIP-001 library backup", () => {
     const result = await importLibrary(archive, translate);
 
     expect(result.bookCount).toBeGreaterThanOrEqual(1);
-    expect(await getBook(id)).toEqual(book);
+    expect(await getBook(id)).toMatchObject(book);
     expect(await (await getBookFile(id))?.text()).toBe("pdf");
     expect((await getBookCover(id))?.type).toBe("image/webp");
     expect(await getProgress(id)).toEqual(progress);
-    expect(await getHighlights(id)).toContainEqual(highlight);
+    expect(await getHighlights(id)).toContainEqual({ ...highlight, updatedAt: expect.any(Number) });
     expect(await getBookmarks(id)).toContainEqual(bookmark);
 
     await deleteBook(id);
@@ -151,6 +151,43 @@ describe("IT-BACKUP-VALIDATION-001 invalid backup", () => {
       manifest.metadata.progress = [
         { bookId: id, location: 42, percentage: "all", updatedAt: null },
       ];
+      zip.file("manifest.json", JSON.stringify(manifest));
+      const invalidArchive = await zip.generateAsync({ type: "blob" });
+      await deleteBook(id);
+
+      await expect(importLibrary(invalidArchive, translate)).rejects.toThrow(
+        "backupLib.invalidFile"
+      );
+      expect(await getBook(id)).toBeUndefined();
+    } finally {
+      await deleteBook(id);
+    }
+  });
+
+  it("rejects a manifest file size that differs from the ZIP entry before restore", async () => {
+    const { default: JSZip } = await import("jszip");
+    const id = `invalid-size-${crypto.randomUUID()}`;
+    const book: Book = {
+      id,
+      title: "Invalid Size",
+      author: "Paperlike",
+      format: "pdf",
+      addedAt: Date.now(),
+      fileSize: 4,
+    };
+
+    try {
+      await addBook(book, new Blob(["data"], { type: "application/pdf" }));
+      const completeArchive = await exportLibrary();
+      const zip = await JSZip.loadAsync(await completeArchive.arrayBuffer());
+      const manifestEntry = zip.file("manifest.json");
+      expect(manifestEntry).not.toBeNull();
+      const manifest = JSON.parse(await manifestEntry!.async("string")) as {
+        books: Array<{ id: string; fileSize: number }>;
+      };
+      const manifestBook = manifest.books.find((entry) => entry.id === id);
+      expect(manifestBook).toBeDefined();
+      manifestBook!.fileSize = 3;
       zip.file("manifest.json", JSON.stringify(manifest));
       const invalidArchive = await zip.generateAsync({ type: "blob" });
       await deleteBook(id);

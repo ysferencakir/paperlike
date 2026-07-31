@@ -51,7 +51,12 @@ export function BookListRow({ book, editMode = false }: { book: Book; editMode?:
         {t(book.format === "epub" ? "format.epub" : "format.pdf")}
       </span>
 
-      <div className="flex shrink-0 items-center gap-0.5">
+      <div className="flex shrink-0 items-center gap-1.5">
+        {confirming && (
+          <span className="rounded-md bg-destructive px-1.5 py-0.5 text-[10px] font-medium text-destructive-foreground">
+            {t("book.confirmDelete")}
+          </span>
+        )}
         <BookActionsMenu book={book} variant="inline" forceVisible={editMode} />
         <button
           type="button"

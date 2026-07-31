@@ -5,6 +5,13 @@ import { parseEpubFile } from "./epub-loader";
 
 const translate = ((key: string) => key) as Translate;
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength
+  ) as ArrayBuffer;
+}
+
 describe("IT-EPUB-PARSE-001 EPUB parser compatibility", () => {
   it("reads metadata from a minimal EPUB with the patched xmldom dependency", async () => {
     const zip = new JSZip();
@@ -45,8 +52,7 @@ describe("IT-EPUB-PARSE-001 EPUB parser compatibility", () => {
     );
     const bytes = await zip.generateAsync({ type: "uint8array" });
     const epubBlob = {
-      arrayBuffer: async () =>
-        bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+      arrayBuffer: async () => toArrayBuffer(bytes),
     } as Blob;
 
     if (!URL.createObjectURL) {
@@ -60,5 +66,32 @@ describe("IT-EPUB-PARSE-001 EPUB parser compatibility", () => {
       title: "Patched EPUB",
       author: "Paperlike QA",
     });
+  });
+
+  it("rejects a ZIP without the EPUB mimetype before epub.js parsing", async () => {
+    const zip = new JSZip();
+    zip.file("OEBPS/content.opf", "<package/>");
+    const bytes = await zip.generateAsync({ type: "uint8array" });
+    const epubBlob = new Blob([toArrayBuffer(bytes)], { type: "application/epub+zip" });
+
+    await expect(parseEpubFile(epubBlob, translate)).rejects.toThrow(
+      "importBook.invalidContent"
+    );
+  });
+
+  it("rejects an EPUB entry with a suspicious compression ratio", async () => {
+    const zip = new JSZip();
+    zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
+    zip.file("OEBPS/bomb.xhtml", "A".repeat(1024 * 1024));
+    const bytes = await zip.generateAsync({
+      type: "uint8array",
+      compression: "DEFLATE",
+      compressionOptions: { level: 9 },
+    });
+    const epubBlob = new Blob([toArrayBuffer(bytes)], { type: "application/epub+zip" });
+
+    await expect(parseEpubFile(epubBlob, translate)).rejects.toThrow(
+      "importBook.invalidContent"
+    );
   });
 });

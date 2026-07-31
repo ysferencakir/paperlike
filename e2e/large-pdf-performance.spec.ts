@@ -33,7 +33,7 @@ test("E2E-W-PERF-001 virtualizes a large PDF in continuous mode", async ({ page 
       );
 
       const db = await new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open("epub-reader", 3);
+        const request = indexedDB.open("epub-reader");
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });

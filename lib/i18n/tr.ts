@@ -18,11 +18,38 @@ export const tr = {
   "openFile.importedFilename": "İçe Aktarılan Kitap",
   "openFile.added": "Kitap eklendi.",
   "openFile.failed": "Kitap açılamadı.",
+  "importBook.fileTooLarge": "Kitap dosyası 1 GB güvenlik sınırını aşıyor.",
+  "importBook.invalidContent": "Dosyanın içeriği EPUB veya PDF biçimiyle eşleşmiyor.",
 
   // PWA
   "pwa.updateReady": "Paperlike'ın yeni sürümü hazır.",
   "pwa.update": "Güncelle",
   "pwa.later": "Sonra",
+  "pwa.updating": "Yeni sürüm etkinleştiriliyor…",
+  "pwa.updateFailed": "Yeni sürüm hazırlanamadı. Mevcut sürüm çalışmaya devam ediyor.",
+  "pwa.cacheFailed": "Yeni çevrimdışı içerik kaydedilemedi. Mevcut verilerin korunuyor.",
+  "pwa.retry": "Yeniden Dene",
+  "pwa.toolsAriaLabel": "Uygulama ve depolama",
+  "pwa.toolsTitle": "Uygulama ve Depolama",
+  "pwa.toolsDescription": "Paperlike'ı yükle ve tarayıcıdaki yerel kitap alanını yönet.",
+  "pwa.installTitle": "Uygulamayı yükle",
+  "pwa.installDescription": "Daha hızlı erişmek ve uygulama görünümünde kullanmak için Paperlike'ı cihazına yükle.",
+  "pwa.install": "Paperlike'ı Yükle",
+  "pwa.installed": "Paperlike bu cihazda yüklü.",
+  "pwa.installIosHint": "Safari'de Paylaş düğmesine, ardından Ana Ekrana Ekle seçeneğine dokun.",
+  "pwa.installBrowserHint": "Yükleme seçeneği hazır olduğunda burada görünür. Tarayıcı menüsündeki “Uygulamayı yükle” veya “Ana ekrana ekle” seçeneğini de kullanabilirsin.",
+  "pwa.storageTitle": "Yerel depolama",
+  "pwa.storageLoading": "Depolama bilgisi okunuyor…",
+  "pwa.storageUnsupported": "Bu tarayıcı depolama kotası bilgisini paylaşmıyor.",
+  "pwa.storageUsed": "{usage} / {quota} kullanılıyor",
+  "pwa.storageAvailable": "Yaklaşık {available} kullanılabilir alan",
+  "pwa.storageUsageAriaLabel": "Yerel depolama kullanımı",
+  "pwa.storageLow": "Kullanılabilir alan azalıyor. Yeni kitap eklemeden önce gereksiz dosyaları sil veya kütüphaneni yedekle.",
+  "pwa.storagePersistent": "Kalıcı depolama koruması etkin.",
+  "pwa.storagePersistenceDescription": "Tarayıcının alan açarken Paperlike verilerini otomatik temizleme riskini azalt.",
+  "pwa.storageRequestPersistence": "Kalıcı Depolamayı İste",
+  "pwa.storagePersistenceDenied": "Tarayıcı bu isteği kabul etmedi. Uygulamayı yüklemek ve düzenli kullanmak daha sonra izin verilmesine yardımcı olabilir.",
+  "pwa.storageNotBackup": "Bu koruma bir yedek değildir. Kitaplarını güvenceye almak için ayrıca kütüphane yedeği oluştur.",
 
   // Backup menu
   "backup.shareTitle": "Kütüphane Yedeği",
@@ -140,6 +167,7 @@ export const tr = {
   "upload.importing": "Kitap içe aktarılıyor…",
   "upload.idle": "EPUB veya PDF yükleyin",
   "upload.hint": "Sürükleyip bırakın ya da tıklayarak seçin",
+  "upload.insufficientStorage": "Bu kitaplar için yeterli güvenli yerel alan yok. Önce yer açın veya kütüphanenizi yedekleyin.",
 
   // Break suggestion
   "break.suggestion": "Bir süredir kitabının içindesin. Gözlerine küçük bir mola iyi gelebilir 🌿",
@@ -221,6 +249,7 @@ export const tr = {
   "reader.loadError":
     "Kitap bilgileri yüklenirken bir sorun oluştu. Kütüphaneye dönüp yeniden deneyin.",
   "reader.loading": "Kitap yükleniyor",
+  "reader.downloadingFile": "Kitap buluttan indiriliyor…",
   "reader.backToLibrary": "Kütüphaneye dön",
   "reader.stopReadAloud": "Sesli okumayı durdur",
   "reader.readAloud": "Sesli oku",
@@ -308,4 +337,10 @@ export const tr = {
   "account.errorInvalidEmail": "Geçersiz e-posta adresi.",
   "account.errorUserNotFound": "Bu e-postayla bir hesap bulunamadı.",
   "account.errorGeneric": "Bir şeyler ters gitti. Tekrar dene.",
+
+  // Google Drive sync errors (background book-file backup failures)
+  "drive.errorQuotaExceeded": "Drive'da yer kalmadı, kitap yedeklenemedi.",
+  "drive.errorPermissionDenied": "Drive erişim izni iptal edilmiş, tekrar giriş yapın.",
+  "drive.errorNotFound": "Kitap dosyası Drive'da bulunamadı.",
+  "drive.errorGeneric": "Kitap Drive'a yedeklenemedi, daha sonra tekrar denenecek.",
 } as const;

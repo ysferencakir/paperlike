@@ -55,6 +55,8 @@ function dependencies(
     getProgress: vi.fn().mockResolvedValue(PROGRESS),
     getHighlights: vi.fn().mockResolvedValue(HIGHLIGHTS),
     getBookmarks: vi.fn().mockResolvedValue(BOOKMARKS),
+    downloadBookFileFromDrive: vi.fn().mockResolvedValue(null),
+    saveBookFile: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -104,13 +106,44 @@ describe("IT-READER-LOAD-001 useReaderBootstrap", () => {
     expect(result.current.bootstrap.book).toBeNull();
   });
 
-  it("returns missingFile when metadata exists without a Blob", async () => {
+  it("returns missingFile when metadata exists without a Blob and no Drive file id", async () => {
     const deps = dependencies({ getBookFile: vi.fn().mockResolvedValue(undefined) });
     const { result } = renderHook(() => useReaderBootstrap(BOOK.id, deps));
 
     await waitFor(() => expect(result.current.bootstrap.status).toBe("missingFile"));
     expect(result.current.bootstrap.book).toEqual(BOOK);
     expect(result.current.bootstrap.file).toBeNull();
+  });
+
+  it("lazily downloads a missing file from Drive when the book has a driveFileId", async () => {
+    const pulledBook: Book = { ...BOOK, driveFileId: "drive-file-1" };
+    const downloadBookFileFromDrive = vi.fn().mockResolvedValue(FILE);
+    const saveBookFile = vi.fn().mockResolvedValue(undefined);
+    const deps = dependencies({
+      getBook: vi.fn().mockResolvedValue(pulledBook),
+      getBookFile: vi.fn().mockResolvedValue(undefined),
+      downloadBookFileFromDrive,
+      saveBookFile,
+    });
+    const { result } = renderHook(() => useReaderBootstrap(BOOK.id, deps));
+
+    await waitFor(() => expect(result.current.bootstrap.status).toBe("ready"));
+    expect(downloadBookFileFromDrive).toHaveBeenCalledWith("drive-file-1");
+    expect(saveBookFile).toHaveBeenCalledWith(BOOK.id, FILE);
+    expect(result.current.bootstrap).toMatchObject({ status: "ready", book: pulledBook, file: FILE });
+  });
+
+  it("falls back to missingFile when the Drive download fails", async () => {
+    const pulledBook: Book = { ...BOOK, driveFileId: "drive-file-1" };
+    const deps = dependencies({
+      getBook: vi.fn().mockResolvedValue(pulledBook),
+      getBookFile: vi.fn().mockResolvedValue(undefined),
+      downloadBookFileFromDrive: vi.fn().mockResolvedValue(null),
+    });
+    const { result } = renderHook(() => useReaderBootstrap(BOOK.id, deps));
+
+    await waitFor(() => expect(result.current.bootstrap.status).toBe("missingFile"));
+    expect(result.current.bootstrap.book).toEqual(pulledBook);
   });
 
   it("returns loadError when any storage request rejects", async () => {

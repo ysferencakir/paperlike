@@ -4,13 +4,14 @@ import type {
   BookCover,
   BookFile,
   Bookmark,
+  DriveUploadSession,
   Highlight,
   ReadingProgress,
   ReadingStatDay,
 } from "./types";
 
 const DB_NAME = "epub-reader";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 interface ReaderDB extends DBSchema {
   books: {
@@ -44,6 +45,10 @@ interface ReaderDB extends DBSchema {
     key: string;
     value: ReadingStatDay;
   };
+  driveUploadSessions: {
+    key: string;
+    value: DriveUploadSession;
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<ReaderDB>> | null = null;
@@ -71,6 +76,9 @@ function getDB() {
         if (oldVersion < 3) {
           db.createObjectStore("readingStats", { keyPath: "date" });
         }
+        if (oldVersion < 4) {
+          db.createObjectStore("driveUploadSessions", { keyPath: "bookId" });
+        }
       },
     });
   }
@@ -83,15 +91,51 @@ export async function addBook(
   coverBlob?: Blob
 ): Promise<void> {
   const db = await getDB();
+  const stamped: Book = { ...book, updatedAt: Date.now() };
   const tx = db.transaction(["books", "files", "covers"], "readwrite");
-  await tx.objectStore("books").put(book);
+  await tx.objectStore("books").put(stamped);
   await tx.objectStore("files").put({ bookId: book.id, blob: fileBlob });
   if (coverBlob) {
     await tx.objectStore("covers").put({ bookId: book.id, blob: coverBlob });
   }
   await tx.done;
-  void import("./cloud-sync").then((m) => m.pushBook(book)).catch(console.error);
-  void import("./cloud-sync").then((m) => m.syncBookFileToDrive(book, fileBlob)).catch(console.error);
+  void import("./cloud-sync").then((m) => m.pushBook(stamped)).catch(console.error);
+  void import("./cloud-sync").then((m) => m.syncBookFileToDrive(stamped, fileBlob)).catch(console.error);
+}
+
+/**
+ * Writes (or overwrites) a book's file blob directly — the same `files`
+ * store write `addBook` does, split out so the reader's lazy Drive-download
+ * fallback (see components/reader/useReaderBootstrap.ts) can save a
+ * just-downloaded file without re-running the rest of `addBook`.
+ */
+export async function saveBookFile(bookId: string, blob: Blob): Promise<void> {
+  const db = await getDB();
+  await db.put("files", { bookId, blob });
+}
+
+/**
+ * Writes (or overwrites) a book's cover blob directly — used to backfill a
+ * cover for a pulled book once its file is lazily downloaded from Drive and
+ * re-parsed for its cover image (a pulled book has no cover until then,
+ * since covers aren't synced to Firestore/Drive, only extracted locally from
+ * the file itself).
+ */
+export async function saveBookCover(bookId: string, blob: Blob): Promise<void> {
+  const db = await getDB();
+  await db.put("covers", { bookId, blob });
+}
+
+/**
+ * Writes book metadata pulled from Firestore straight into the `books`
+ * store, without touching `files`/`covers` (the pull is metadata-only; the
+ * file itself is fetched from Drive lazily, on first open — see
+ * useReaderBootstrap.ts) and without pushing back to Firestore (we just read
+ * this from there).
+ */
+export async function upsertBookMetadata(book: Book): Promise<void> {
+  const db = await getDB();
+  await db.put("books", book);
 }
 
 export async function getAllBooks(): Promise<Book[]> {
@@ -117,6 +161,27 @@ export async function getBookCover(bookId: string): Promise<Blob | undefined> {
   return record?.blob;
 }
 
+/**
+ * Reads/writes the in-flight Google Drive resumable-upload session for a
+ * book id, if any — lets an interrupted upload (network drop, app
+ * backgrounded/killed mid-transfer) resume instead of restarting from byte
+ * 0. See lib/drive-sync.ts, which owns the actual Drive protocol calls.
+ */
+export async function getDriveUploadSession(bookId: string): Promise<DriveUploadSession | undefined> {
+  const db = await getDB();
+  return db.get("driveUploadSessions", bookId);
+}
+
+export async function saveDriveUploadSession(session: DriveUploadSession): Promise<void> {
+  const db = await getDB();
+  await db.put("driveUploadSessions", session);
+}
+
+export async function deleteDriveUploadSession(bookId: string): Promise<void> {
+  const db = await getDB();
+  await db.delete("driveUploadSessions", bookId);
+}
+
 export async function updateBook(
   bookId: string,
   patch: Partial<Pick<Book, "title" | "author" | "category">>
@@ -124,7 +189,7 @@ export async function updateBook(
   const db = await getDB();
   const existing = await db.get("books", bookId);
   if (!existing) return undefined;
-  const updated = { ...existing, ...patch };
+  const updated = { ...existing, ...patch, updatedAt: Date.now() };
   await db.put("books", updated);
   void import("./cloud-sync").then((m) => m.pushBook(updated)).catch(console.error);
   return updated;
@@ -133,13 +198,14 @@ export async function updateBook(
 export async function deleteBook(bookId: string): Promise<void> {
   const db = await getDB();
   const tx = db.transaction(
-    ["books", "files", "covers", "progress", "highlights", "bookmarks"],
+    ["books", "files", "covers", "progress", "highlights", "bookmarks", "driveUploadSessions"],
     "readwrite"
   );
   await tx.objectStore("books").delete(bookId);
   await tx.objectStore("files").delete(bookId);
   await tx.objectStore("covers").delete(bookId);
   await tx.objectStore("progress").delete(bookId);
+  await tx.objectStore("driveUploadSessions").delete(bookId);
   const highlightIds = (
     await tx.objectStore("highlights").index("by-book").getAllKeys(bookId)
   ) as string[];
@@ -171,10 +237,23 @@ export async function setProgress(progress: ReadingProgress): Promise<void> {
   void import("./cloud-sync").then((m) => m.pushProgress(progress)).catch(console.error);
 }
 
+/** Writes reading progress pulled from Firestore, without pushing back — see upsertBookMetadata. */
+export async function upsertProgressLocal(progress: ReadingProgress): Promise<void> {
+  const db = await getDB();
+  await db.put("progress", progress);
+}
+
 export async function addHighlight(highlight: Highlight): Promise<void> {
   const db = await getDB();
+  const stamped: Highlight = { ...highlight, updatedAt: Date.now() };
+  await db.put("highlights", stamped);
+  void import("./cloud-sync").then((m) => m.pushHighlight(stamped)).catch(console.error);
+}
+
+/** Writes a highlight pulled from Firestore, without pushing back — see upsertBookMetadata. */
+export async function upsertHighlightLocal(highlight: Highlight): Promise<void> {
+  const db = await getDB();
   await db.put("highlights", highlight);
-  void import("./cloud-sync").then((m) => m.pushHighlight(highlight)).catch(console.error);
 }
 
 export async function getHighlights(bookId: string): Promise<Highlight[]> {
@@ -190,7 +269,7 @@ export async function updateHighlight(
   const db = await getDB();
   const existing = await db.get("highlights", id);
   if (!existing) return undefined;
-  const updated = { ...existing, ...patch };
+  const updated = { ...existing, ...patch, updatedAt: Date.now() };
   await db.put("highlights", updated);
   void import("./cloud-sync").then((m) => m.pushHighlight(updated)).catch(console.error);
   return updated;
@@ -211,6 +290,16 @@ export async function addBookmark(bookmark: Bookmark): Promise<void> {
   const db = await getDB();
   await db.put("bookmarks", bookmark);
   void import("./cloud-sync").then((m) => m.pushBookmark(bookmark)).catch(console.error);
+}
+
+/**
+ * Writes a bookmark pulled from Firestore, without pushing back. Bookmarks
+ * are immutable once created (no update path), so pull only ever inserts
+ * ones missing locally — no updatedAt comparison needed.
+ */
+export async function upsertBookmarkLocal(bookmark: Bookmark): Promise<void> {
+  const db = await getDB();
+  await db.put("bookmarks", bookmark);
 }
 
 export async function getBookmarks(bookId: string): Promise<Bookmark[]> {

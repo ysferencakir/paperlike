@@ -4,6 +4,7 @@ import { parseEpubFile } from "./epub-loader";
 import { parsePdfFile } from "./pdf-loader";
 import { generateId } from "./utils";
 import type { Translate } from "./i18n/useTranslation";
+import { validateBookFile } from "./file-validation";
 
 function detectFormat(file: File): BookFormat | null {
   const name = file.name.toLowerCase();
@@ -24,6 +25,13 @@ export async function importBookFile(file: File, t: Translate): Promise<Book> {
   const format = detectFormat(file);
   if (!format) {
     throw new Error(t("importBook.unsupportedType", { filename: file.name }));
+  }
+  const validationError = await validateBookFile(file, format);
+  if (validationError === "tooLarge") {
+    throw new Error(t("importBook.fileTooLarge"));
+  }
+  if (validationError) {
+    throw new Error(t("importBook.invalidContent"));
   }
 
   const fallbackTitle = stripExtension(file.name);

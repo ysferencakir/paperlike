@@ -6,7 +6,7 @@ import {
   signInWithCredential,
   signOut as firebaseSignOut,
 } from "firebase/auth";
-import { pushLibrarySnapshot } from "@/lib/cloud-sync";
+import { pullLibrarySnapshot, pushLibrarySnapshot } from "@/lib/cloud-sync";
 import { getFirebaseAuth, setFirebaseIsNativePlatform } from "@/lib/firebase";
 import { DRIVE_SIGNIN_SCOPES, cacheDriveAccessToken, clearDriveAccessToken } from "@/lib/drive-sync";
 
@@ -32,6 +32,19 @@ async function syncWebAuthWithEmailPassword(email: string, password: string): Pr
   const auth = getFirebaseAuth();
   if (!auth) return;
   await signInWithCredential(auth, EmailAuthProvider.credential(email, password));
+}
+
+/**
+ * Declares this device's local library to Firestore, then pulls down
+ * whatever it's missing or behind on from other devices — push first so a
+ * book/edit this device already has isn't seen as "older" than itself by
+ * the pull that follows. Fire-and-forget from every sign-in call site;
+ * failures are logged only, same as push alone was before pull existed.
+ */
+function syncLibrary(uid: string): void {
+  pushLibrarySnapshot(uid)
+    .then(() => pullLibrarySnapshot(uid))
+    .catch(console.error);
 }
 
 interface AuthState {
@@ -62,19 +75,19 @@ export const useAuthStore = create<AuthState>()((set) => ({
     // the *native* sign-in alone, racing ahead of syncWebAuthAfterGoogleSignIn
     // and pushing to Firestore before request.auth exists on the JS side,
     // which the security rules then reject.
-    if (result.user) pushLibrarySnapshot(result.user.uid).catch(console.error);
+    if (result.user) syncLibrary(result.user.uid);
   },
 
   signInWithEmail: async (email, password) => {
     const result = await FirebaseAuthentication.signInWithEmailAndPassword({ email, password });
     await syncWebAuthWithEmailPassword(email, password);
-    if (result.user) pushLibrarySnapshot(result.user.uid).catch(console.error);
+    if (result.user) syncLibrary(result.user.uid);
   },
 
   createAccountWithEmail: async (email, password) => {
     const result = await FirebaseAuthentication.createUserWithEmailAndPassword({ email, password });
     await syncWebAuthWithEmailPassword(email, password);
-    if (result.user) pushLibrarySnapshot(result.user.uid).catch(console.error);
+    if (result.user) syncLibrary(result.user.uid);
   },
 
   resetPassword: async (email) => {
@@ -96,7 +109,7 @@ export async function initAuthListener(): Promise<() => void> {
   try {
     const result = await FirebaseAuthentication.getCurrentUser();
     useAuthStore.setState({ user: result.user, initialized: true });
-    if (result.user) pushLibrarySnapshot(result.user.uid).catch(console.error);
+    if (result.user) syncLibrary(result.user.uid);
 
     const listener = await FirebaseAuthentication.addListener("authStateChange", (change) => {
       // Interactive sign-ins push their own snapshot (see signInWithGoogle/

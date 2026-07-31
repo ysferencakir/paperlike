@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { importBookFile } from "@/lib/import-book";
 import { toast } from "@/store/useToastStore";
 import { useTranslation } from "@/lib/i18n/useTranslation";
+import { MAX_BOOK_FILE_BYTES } from "@/lib/file-validation";
 
 interface FileOpenedEvent {
   uri: string;
@@ -72,6 +73,14 @@ export function OpenFileHandler() {
             const ext = detectExtension(event.uri, event.mimeType);
             if (!ext) throw new Error(tRef.current("openFile.unsupportedType"));
             const mimeType = MIME_BY_EXTENSION[ext];
+            // Capacitor Filesystem resolves content:// metadata through the
+            // provider before readFile allocates a base64 copy in the WebView.
+            // validateBookFile repeats the limit after the Blob is built, so a
+            // stale/incorrect provider size cannot silently enter storage.
+            const metadata = await Filesystem.stat({ path: event.uri });
+            if (metadata.size > MAX_BOOK_FILE_BYTES) {
+              throw new Error(tRef.current("importBook.fileTooLarge"));
+            }
             // Native always returns base64 (Blob is web-only, and this
             // handler only ever runs on a native platform — see the
             // isNativePlatform() guard above).

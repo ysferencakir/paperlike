@@ -505,12 +505,14 @@ export function ReaderView({ bookId }: { bookId: string }) {
     );
   }
 
-  if (bootstrap.status === "loading") {
+  if (bootstrap.status === "loading" || bootstrap.status === "downloadingFile") {
     return (
       <div className="flex h-dvh w-full items-center justify-center bg-background">
         <Loader2
           className="size-6 animate-spin text-muted-foreground"
-          aria-label={t("reader.loading")}
+          aria-label={
+            bootstrap.status === "downloadingFile" ? t("reader.downloadingFile") : t("reader.loading")
+          }
         />
       </div>
     );

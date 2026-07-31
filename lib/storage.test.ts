@@ -16,9 +16,14 @@ import {
   getBookmarks,
   getHighlights,
   getProgress,
+  saveBookFile,
   setProgress,
   updateBook,
   updateHighlight,
+  upsertBookMetadata,
+  upsertBookmarkLocal,
+  upsertHighlightLocal,
+  upsertProgressLocal,
 } from "./storage";
 
 describe("IT-STORAGE-001 IndexedDB reader data", () => {
@@ -62,12 +67,12 @@ describe("IT-STORAGE-001 IndexedDB reader data", () => {
     await addHighlight(highlight);
     await addBookmark(bookmark);
 
-    expect(await getBook(id)).toEqual(book);
-    expect(await getAllBooks()).toContainEqual(book);
+    expect(await getBook(id)).toMatchObject(book);
+    expect(await getAllBooks()).toContainEqual(await getBook(id));
     expect(await (await getBookFile(id))?.text()).toBe("epub");
     expect((await getBookCover(id))?.type).toBe("image/png");
     expect(await getProgress(id)).toEqual(progress);
-    expect(await getHighlights(id)).toEqual([highlight]);
+    expect(await getHighlights(id)).toEqual([{ ...highlight, updatedAt: expect.any(Number) }]);
     expect(await getBookmarks(id)).toEqual([bookmark]);
 
     expect(await updateBook(id, { title: "Updated Storage Test" })).toMatchObject({
@@ -91,5 +96,60 @@ describe("IT-STORAGE-001 IndexedDB reader data", () => {
     expect(await getBookFile(id)).toBeUndefined();
     expect(await getBookCover(id)).toBeUndefined();
     expect(await getProgress(id)).toBeUndefined();
+  });
+});
+
+describe("IT-STORAGE-002 pull-sync local-only writers", () => {
+  it("upserts pulled book/progress/highlight/bookmark data without a cloud push side effect", async () => {
+    const id = `pull-${crypto.randomUUID()}`;
+    const book: Book = {
+      id,
+      title: "Pulled From Firestore",
+      author: "Paperlike",
+      format: "pdf",
+      addedAt: Date.now(),
+      fileSize: 10,
+      updatedAt: Date.now(),
+      driveFileId: "drive-file-id-123",
+    };
+    const progress: ReadingProgress = {
+      bookId: id,
+      location: "page:3",
+      percentage: 12,
+      updatedAt: Date.now(),
+    };
+    const highlight: Highlight = {
+      id: `${id}-highlight`,
+      bookId: id,
+      location: "page:3",
+      text: "Pulled highlight",
+      color: "#bfdbfe",
+      importance: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    const bookmark: Bookmark = {
+      id: `${id}-bookmark`,
+      bookId: id,
+      location: "page:5",
+      label: "Page 5",
+      createdAt: Date.now(),
+    };
+
+    await upsertBookMetadata(book);
+    await upsertProgressLocal(progress);
+    await upsertHighlightLocal(highlight);
+    await upsertBookmarkLocal(bookmark);
+
+    expect(await getBook(id)).toEqual(book);
+    expect(await getBookFile(id)).toBeUndefined(); // metadata-only — file is fetched lazily on open
+    expect(await getProgress(id)).toEqual(progress);
+    expect(await getHighlights(id)).toEqual([highlight]);
+    expect(await getBookmarks(id)).toEqual([bookmark]);
+
+    await saveBookFile(id, new Blob(["late file"], { type: "application/pdf" }));
+    expect(await (await getBookFile(id))?.text()).toBe("late file");
+
+    await deleteBook(id);
   });
 });

@@ -129,6 +129,13 @@
   }
   html {
     @apply font-sans;
+    /* Off-screen absolutely-positioned UI (e.g. the shelf hover popup) must
+       never make the page horizontally scrollable. Applied only here (the
+       actual root scroller, since html carries h-full while body just
+       grows past it) — duplicating this onto body as well turned body into
+       its own nested scroll container, which broke vertical touch-scroll
+       fling in the Android WebView. */
+    overflow-x: hidden;
   }
 }
 

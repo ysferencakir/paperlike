@@ -14,6 +14,9 @@ name: Android Release
 # Does not run automatically on push - it produces a signed, store-ready
 # artifact and should only run when a maintainer deliberately cuts a release.
 
+permissions:
+  contents: read
+
 on:
   workflow_dispatch:
   push:
@@ -32,6 +35,9 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      - name: Lint, type-check, and test
+        run: npm run check
 
       - name: Decode release keystore
         run: |

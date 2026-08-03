@@ -137,13 +137,21 @@ export function LibraryView() {
                   size="sm"
                   onClick={() => setEditMode((v) => !v)}
                   className="gap-1.5"
+                  aria-label={editMode ? t("library.doneEditing") : t("library.editLibrary")}
                 >
                   {editMode ? <Check className="size-3.5" /> : <Pencil className="size-3.5" />}
-                  {editMode ? t("library.doneEditing") : t("library.editLibrary")}
+                  <span className="hidden sm:inline">
+                    {editMode ? t("library.doneEditing") : t("library.editLibrary")}
+                  </span>
                 </Button>
-                <Button size="sm" onClick={() => setUploadOpen(true)} className="gap-1.5">
+                <Button
+                  size="sm"
+                  onClick={() => setUploadOpen(true)}
+                  className="gap-1.5"
+                  aria-label={t("library.addBook")}
+                >
                   <Plus className="size-3.5" />
-                  {t("library.addBook")}
+                  <span className="hidden sm:inline">{t("library.addBook")}</span>
                 </Button>
               </>
             )}

@@ -35,10 +35,10 @@ export function BookCard({ book, editMode = false }: { book: Book; editMode?: bo
 
   return (
     <Link href={`/reader?bookId=${book.id}`} className="group flex flex-col gap-2.5">
-      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-muted shadow-sm ring-1 ring-black/5 transition-all duration-300 ease-out group-hover:-translate-y-1 group-hover:shadow-xl group-hover:ring-black/10">
+      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-muted shadow-md ring-1 ring-black/5 transition-all duration-300 ease-out group-hover:-translate-y-1 group-hover:shadow-xl group-hover:ring-black/10">
         <BookCover book={book} />
 
-        <span className="absolute left-2 top-2 rounded-md bg-black/45 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-white opacity-100 backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-0">
+        <span className="absolute left-2 top-2 rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-white opacity-100 shadow-sm ring-1 ring-white/15 backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-0">
           {t(book.format === "epub" ? "format.epub" : "format.pdf")}
         </span>
 
